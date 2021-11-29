@@ -37,7 +37,7 @@ export const App = () => {
 }
 ```
 
-The lens can be focused by regular member access
+The lens can be focused by regular member access.
 
 ```tsx
 // Root.tsx
