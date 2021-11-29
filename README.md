@@ -17,7 +17,7 @@ const { LensProvider } = create<State>();
 export { LensProvider };
 ```
 
-The lens itself is provided via a `children` function to `LensProvider`. This is an intentional decision to encourage using the lens as a prop.
+The lens itself is provided via a `children` function to `LensProvider`. This is an intentional decision to encourage using the lens as a prop from the root of your application UI.
 
 ```tsx
 // App.tsx
@@ -58,6 +58,8 @@ export const Root = (props: Props) => {
 And then the underlying data it can be accessed by collapsing the lens into a React hook with `useState`.
 
 ```tsx
+// Profile.tsx
+
 type Props = {
   state: Lens<{ name: string; email: string }>;
 };
