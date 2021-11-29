@@ -115,7 +115,6 @@ export const create = <S,>() => {
   StatefulLensProvider.displayName = "Lens(StatefulLensProvider)";
 
   return {
-    lens,
     LensProvider,
     StatefulLensProvider,
   };
