@@ -82,15 +82,15 @@ describe("compose", () => {
     const eLens = lens.a.d.e;
 
     const lengthLens = eLens.compose<number>({
-      get(value) {
-        return value.length;
+      get(state) {
+        return state.length;
       },
-      set(prev, count) {
-        return `${prev}${"!".repeat(count)}`;
+      set(state, count) {
+        return `${state}${"!".repeat(count)}`;
       },
     });
 
-    const [e1] = eLens.useState();
+    const [e1, setE] = eLens.useState();
     const [length1, addExclamations] = lengthLens.useState();
 
     expect(e1).toEqual("cool");
@@ -110,5 +110,62 @@ describe("compose", () => {
     const [e3] = eLens.useState();
 
     expect(e3).toEqual("cool!!!!!!!!!!");
+
+    setE("potato");
+
+    const [e4] = eLens.useState();
+    const [length4] = lengthLens.useState();
+
+    expect(e4).toEqual("potato");
+    expect(length4).toEqual(6);
+  });
+});
+
+describe("traverse", () => {
+  test("traverses each element of a lens", () => {
+    const fLens = lens.a.f;
+
+    const strLens = fLens.traverse<"a" | "b" | "c">({
+      get(state) {
+        if (state === undefined) {
+          return "a";
+        }
+
+        if (state.g) {
+          return "b";
+        } else {
+          return "c";
+        }
+      },
+
+      set(state, value) {
+        switch (value) {
+          case "a":
+            return undefined;
+          case "b":
+            return { g: true };
+          case "c":
+            return { g: false };
+        }
+      },
+    });
+
+    const [f1] = fLens.useState();
+    const [str1, nextStr] = strLens.useState();
+
+    expect(f1).toHaveLength(3);
+    expect(str1).toEqual(["b", "c", "b"]);
+
+    nextStr(["b", "b", "b", "c", "c", "c"]);
+
+    const [f2, setF] = fLens.useState();
+
+    expect(f2).toEqual([{ g: true }, { g: true }, { g: true }, { g: false }, { g: false }, { g: false }]);
+
+    setF([{ g: false }]);
+
+    const [str2] = strLens.useState();
+
+    expect(str2).toEqual(["c"]);
   });
 });
