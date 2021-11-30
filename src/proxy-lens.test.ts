@@ -20,7 +20,7 @@ const initialState = (): State => ({
       c: 0,
     },
     d: {
-      e: "!",
+      e: "cool",
     },
 
     f: [{ g: true }, { g: false }, { g: true }],
@@ -74,5 +74,41 @@ describe("useMap", () => {
     });
 
     expect(next).toEqual([1, 0, 1]);
+  });
+});
+
+describe("compose", () => {
+  test("mapping function for a lens", () => {
+    const eLens = lens.a.d.e;
+
+    const lengthLens = eLens.compose<number>({
+      get(value) {
+        return value.length;
+      },
+      set(prev, count) {
+        return `${prev}${"!".repeat(count)}`;
+      },
+    });
+
+    const [e1] = eLens.useState();
+    const [length1, addExclamations] = lengthLens.useState();
+
+    expect(e1).toEqual("cool");
+    expect(length1).toEqual(4);
+
+    addExclamations(3);
+
+    const [e2] = eLens.useState();
+    const [length2, addMoreExclamations] = lengthLens.useState();
+
+    expect(e2).toEqual("cool!!!");
+    expect(length2).toEqual(7);
+
+    addMoreExclamations(2);
+    addExclamations(5);
+
+    const [e3] = eLens.useState();
+
+    expect(e3).toEqual("cool!!!!!!!!!!");
   });
 });
