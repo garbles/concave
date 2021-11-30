@@ -37,8 +37,6 @@ export type ProxyLens<A> =
   A extends { [k: string]: any } ? ObjectProxyLens<A> :
   PrimitiveProxyLens<A>;
 
-const nothing = Symbol();
-
 const createCompose =
   <S, A>(sa: RawLens<S, A>, createUseState: CreateUseState<S>) =>
   <B>(ab: RawLens<A, B>): Readonly<ProxyLens<B>> => {
@@ -73,11 +71,11 @@ export const createProxyLens = <S, A>(
 ): Readonly<ProxyLens<A>> => {
   type KeyCache = { [K in keyof A]?: Readonly<ProxyLens<A[K]>> };
 
-  let useState: any = nothing;
-  let compose: any = nothing;
-  let coalesce: any = nothing;
-  let useMap: any = nothing;
-  let traverse: any = nothing;
+  let useState: unknown;
+  let compose: unknown;
+  let coalesce: unknown;
+  let useMap: unknown;
+  let traverse: unknown;
   const keyCache: KeyCache = {};
 
   const proxy = new Proxy({} as ProxyLens<A>, {
@@ -86,23 +84,23 @@ export const createProxyLens = <S, A>(
 
       switch (key) {
         case "useState":
-          if (useState === nothing) useState = createUseState(lens);
+          if (useState === undefined) useState = createUseState(lens);
           return useState;
 
         case "compose":
-          if (compose === nothing) compose = createCompose(lens, createUseState);
+          if (compose === undefined) compose = createCompose(lens, createUseState);
           return compose;
 
         case "coalesce":
-          if (coalesce === nothing) coalesce = createCoalesce(lens, createUseState);
+          if (coalesce === undefined) coalesce = createCoalesce(lens, createUseState);
           return coalesce;
 
         case "useMap":
-          if (useMap === nothing) useMap = createUseMap(proxy as ArrayProxyLens<any>);
+          if (useMap === undefined) useMap = createUseMap(proxy as ArrayProxyLens<any>);
           return useMap;
 
         case "traverse":
-          if (traverse === nothing) traverse = createTraverse(lens as RawLens<any, any>, createUseState);
+          if (traverse === undefined) traverse = createTraverse(lens as RawLens<any, any>, createUseState);
           return traverse;
 
         default:
