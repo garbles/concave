@@ -1,4 +1,4 @@
-import { compose, prop, tranverse, RawLens } from "./raw-lens";
+import { compose, prop, tranverse, RawLens, coalesce } from "./raw-lens";
 
 type SetState<A> = (next: A) => void;
 
@@ -13,6 +13,7 @@ type CreateUseState<S> = <A>(lens: RawLens<S, A>) => UseState<A>;
 type WithUseState<A> = {
   useState: UseState<A>;
   compose<B>(lens: RawLens<A, B>): ProxyLens<B>;
+  coalesce(fallback: NonNullable<A>): ProxyLens<NonNullable<A>>;
 };
 
 type WithUseMap<A extends any[]> = {
@@ -45,6 +46,13 @@ const createCompose =
     return createProxyLens(lens, createUseState);
   };
 
+const createCoalesce =
+  <S, A>(sa: RawLens<S, A>, createUseState: CreateUseState<S>) =>
+  (fallback: NonNullable<A>): Readonly<ProxyLens<NonNullable<A>>> => {
+    const lens = coalesce(sa, fallback);
+    return createProxyLens(lens, createUseState);
+  };
+
 const createUseMap =
   <A extends any[]>(lens: ArrayProxyLens<A>): UseMap<A> =>
   <B>(fn: (p: ProxyLens<A[keyof A]>, value: A[keyof A], index: number, arr: A) => B): B[] => {
@@ -67,13 +75,14 @@ export const createProxyLens = <S, A>(
 
   let useState: any = nothing;
   let compose: any = nothing;
+  let coalesce: any = nothing;
   let useMap: any = nothing;
   let traverse: any = nothing;
   const keyCache: KeyCache = {};
 
   const proxy = new Proxy({} as ProxyLens<A>, {
     get(_target, _key: string) {
-      const key = _key as "useState" | "useMap" | "compose" | "traverse" | keyof A;
+      const key = _key as "useState" | "useMap" | "compose" | "coalesce" | "traverse" | keyof A;
 
       switch (key) {
         case "useState":
@@ -83,6 +92,10 @@ export const createProxyLens = <S, A>(
         case "compose":
           if (compose === nothing) compose = createCompose(lens, createUseState);
           return compose;
+
+        case "coalesce":
+          if (coalesce === nothing) coalesce = createCoalesce(lens, createUseState);
+          return coalesce;
 
         case "useMap":
           if (useMap === nothing) useMap = createUseMap(proxy as ArrayProxyLens<any>);
