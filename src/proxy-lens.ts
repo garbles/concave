@@ -15,8 +15,8 @@ type WithUseState<A> = {
   compose<B>(lens: RawLens<A, B>): ProxyLens<B>;
 };
 
-type WithUseMap<A extends any[]> = {
-  useMap: UseMap<A>;
+type WithUseMap<A> = {
+  useMap: UseMap<A[]>;
   traverse<B>(ab: RawLens<A | void, B>): ProxyLens<B[]>;
 };
 
