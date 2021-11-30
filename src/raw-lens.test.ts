@@ -1,4 +1,4 @@
-import { createRawLens, prop } from "./raw-lens";
+import { coalesce, createRawLens, prop } from "./raw-lens";
 
 type State = {
   a: {
@@ -8,6 +8,7 @@ type State = {
     d: {
       e: string;
     };
+    f?: string;
   };
 };
 
@@ -26,6 +27,7 @@ const lens = createRawLens<State>();
 const a = prop(lens, "a");
 const b = prop(a, "b");
 const c = prop(b, "c");
+const f = prop(a, "f");
 
 test("always returns the same base lens", () => {
   const a = createRawLens();
@@ -52,4 +54,13 @@ test("only updates parts of the data", () => {
   const next = b.set(state, { c: 0 });
 
   expect(next.a.d).toBe(state.a.d);
+});
+
+describe("coalesce", () => {
+  test("removes nullability", () => {
+    const next = coalesce(f, "some default");
+
+    expect(f.get(state)).toEqual(undefined);
+    expect(next.get(state)).toEqual("some default");
+  });
 });

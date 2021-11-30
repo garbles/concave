@@ -88,3 +88,15 @@ export const tranverse = <S, A, B>(sa: RawLens<S, A[]>, ab: RawLens<A | void, B>
     },
   };
 };
+
+export const coalesce = <S, A>(lens: RawLens<S, A>, fallback: NonNullable<A>): RawLens<S, NonNullable<A>> => {
+  return compose(lens, {
+    get(state) {
+      return state ?? fallback;
+    },
+
+    set(state, value) {
+      return value;
+    },
+  });
+};
