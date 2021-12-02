@@ -55,7 +55,7 @@ export const create = <S,>() => {
 
   const reducer = (state: S, set: (state: S) => S) => set(state);
 
-  const LensProvider = (props: LensProviderProps) => {
+  const LensProvider: React.FC<LensProviderProps> = (props) => {
     /**
      * Use a reducer to ensure that updates are
      * scheduled correctly with React.
@@ -86,7 +86,7 @@ export const create = <S,>() => {
 
     return (
       <StateContext.Provider value={state}>
-        <SetStateContext.Provider value={dispatch}>{props.children}</SetStateContext.Provider>
+        <SetStateContext.Provider value={dispatch}>{props.children(lens)}</SetStateContext.Provider>
       </StateContext.Provider>
     );
   };

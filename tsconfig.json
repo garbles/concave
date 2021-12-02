@@ -2,7 +2,7 @@
   "compilerOptions": {
     "incremental": true,
     "target": "es2016",
-    "lib": ["es2016"],
+    "lib": ["dom", "es2016"],
     "jsx": "react",
     "module": "commonjs",
     "outDir": "build",

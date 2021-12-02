@@ -14,13 +14,13 @@ const identity: RawLens<any, any> = Object.freeze({
   },
 });
 
-export const createRawLens = <S>(): Readonly<RawLens<S, S>> => identity;
+export const createRawLens = <S>(): RawLens<S, S> => identity;
 
 export const refine = <S extends {}, A, B>(
   lens: RawLens<S, A>,
   get: (value: A) => B,
   set: (state: A, value: B) => A
-): Readonly<RawLens<S, B>> => {
+): RawLens<S, B> => {
   return Object.freeze({
     get(state) {
       const prev = lens.get(state);
@@ -38,7 +38,7 @@ export const refine = <S extends {}, A, B>(
   });
 };
 
-export const prop = <S extends {}, A, K extends keyof A>(sa: RawLens<S, A>, key: K): Readonly<RawLens<S, A[K]>> => {
+export const prop = <S extends {}, A, K extends keyof A>(sa: RawLens<S, A>, key: K): RawLens<S, A[K]> => {
   return refine(
     sa,
     (state) => state[key],

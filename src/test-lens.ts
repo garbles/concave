@@ -5,7 +5,7 @@ import { createRawLens, RawLens } from "./raw-lens";
 type Dispatcher = () => void;
 
 type Result<S> = {
-  lens: Readonly<ProxyLens<S>>;
+  lens: ProxyLens<S>;
   ref: React.RefObject<S>;
 };
 

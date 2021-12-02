@@ -39,14 +39,14 @@ export type ProxyLens<A> =
 
 const createCompose =
   <S, A>(sa: RawLens<S, A>, createUseState: CreateUseState<S>) =>
-  <B>(ab: RawLens<A, B>): Readonly<ProxyLens<B>> => {
+  <B>(ab: RawLens<A, B>): ProxyLens<B> => {
     const lens = compose(sa, ab);
     return createProxyLens(lens, createUseState);
   };
 
 const createCoalesce =
   <S, A>(sa: RawLens<S, A>, createUseState: CreateUseState<S>) =>
-  (fallback: NonNullable<A>): Readonly<ProxyLens<NonNullable<A>>> => {
+  (fallback: NonNullable<A>): ProxyLens<NonNullable<A>> => {
     const lens = coalesce(sa, fallback);
     return createProxyLens(lens, createUseState);
   };
@@ -60,16 +60,13 @@ const createUseMap =
 
 const createTraverse =
   <S, A>(sa: RawLens<S, A[]>, createUseState: CreateUseState<S>) =>
-  <B>(ab: RawLens<A | void, B>): Readonly<ProxyLens<B[]>> => {
+  <B>(ab: RawLens<A | void, B>): ProxyLens<B[]> => {
     const lens: RawLens<S, B[]> = tranverse(sa, ab);
     return createProxyLens(lens, createUseState);
   };
 
-export const createProxyLens = <S, A>(
-  lens: RawLens<S, A>,
-  createUseState: CreateUseState<S>
-): Readonly<ProxyLens<A>> => {
-  type KeyCache = { [K in keyof A]?: Readonly<ProxyLens<A[K]>> };
+export const createProxyLens = <S, A>(lens: RawLens<S, A>, createUseState: CreateUseState<S>): ProxyLens<A> => {
+  type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
 
   let useState: unknown;
   let compose: unknown;
