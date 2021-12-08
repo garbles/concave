@@ -7,6 +7,7 @@ type Setter<S> = (fn: (state: S) => S) => void;
 type Nothing = typeof nothing;
 
 const nothing = Symbol();
+const noop = () => {};
 
 const useContextSelectorOrThrow = <T, U>(context: Context<T | Nothing>, fn: (value: T) => U): U => {
   return useContextSelector(context, (value) => {
@@ -30,7 +31,7 @@ export const create = <S,>() => {
     () => {
       const state = useContextSelectorOrThrow(StateContext, lens.get);
 
-      let setterRef = React.useRef<Setter<S>>(() => state);
+      let setterRef = React.useRef<Setter<S>>(noop);
       const setState = React.useCallback((next: A) => setterRef.current((state) => lens.set(state, next)), []);
 
       useContextSelectorOrThrow(SetStateContext, (fn) => {
@@ -57,8 +58,7 @@ export const create = <S,>() => {
 
   const LensProvider: React.FC<LensProviderProps> = (props) => {
     /**
-     * Use a reducer to ensure that updates are
-     * scheduled correctly with React.
+     * Use a reducer to ensure that updates are scheduled correctly with React.
      */
     const [state, dispatch] = React.useReducer(reducer, props.value);
 
