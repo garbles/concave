@@ -1,7 +1,7 @@
 import React from "react";
 import { Context, createContext, useContextSelector } from "use-context-selector";
-import { createProxyLens, ProxyLens } from "./proxy-lens";
-import { createRawLens, RawLens } from "./raw-lens";
+import { createProxyLens, ProxyLens } from "./proxy";
+import { createBasicLens, BasicLens } from "./basic-lens";
 
 type Setter<S> = (fn: (state: S) => S) => void;
 type Nothing = typeof nothing;
@@ -27,7 +27,7 @@ export const create = <S,>() => {
   SetStateContext.displayName = "Lens(SetStateContext)";
 
   const createUseState =
-    <A,>(lens: RawLens<S, A>) =>
+    <A,>(lens: BasicLens<S, A>) =>
     () => {
       const state = useContextSelectorOrThrow(StateContext, lens.get);
 
@@ -45,7 +45,7 @@ export const create = <S,>() => {
       return [state, setState] as const;
     };
 
-  const rawLens = createRawLens<S>();
+  const rawLens = createBasicLens<S>();
   const lens = createProxyLens(rawLens, createUseState);
 
   type LensProviderProps = {

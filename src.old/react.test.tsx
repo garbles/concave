@@ -5,7 +5,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { create } from "./react";
-import { ProxyLens } from "./proxy-lens";
+import { ProxyLens } from "../src/proxy";
 
 type State = {
   a: {

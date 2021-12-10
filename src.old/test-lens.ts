@@ -1,6 +1,6 @@
 import React from "react";
-import { createProxyLens, ProxyLens } from "./proxy-lens";
-import { createRawLens, RawLens } from "./raw-lens";
+import { createProxyLens, ProxyLens } from "../src/proxy";
+import { createBasicLens, BasicLens } from "../src/basic-lens";
 
 type Dispatcher = () => void;
 
@@ -10,13 +10,13 @@ type Result<S> = {
 };
 
 export const createTestLens = <S>(initialState: S): Result<S> => {
-  const rawLens = createRawLens<S>();
+  const rawLens = createBasicLens<S>();
   const dispatchers: Set<Dispatcher> = new Set();
 
   let globalState = initialState;
 
   const createSetState =
-    <A>(lens: RawLens<S, A>) =>
+    <A>(lens: BasicLens<S, A>) =>
     () => {
       const [next, dispatch] = React.useReducer(() => globalState, globalState);
 

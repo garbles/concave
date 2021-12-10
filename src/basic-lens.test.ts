@@ -1,4 +1,4 @@
-import { coalesce, createRawLens, prop } from "./raw-lens";
+import { coalesce, createBasicLens, prop } from "./basic-lens";
 
 type State = {
   a: {
@@ -23,15 +23,15 @@ const state: State = {
   },
 };
 
-const lens = createRawLens<State>();
+const lens = createBasicLens<State>();
 const a = prop(lens, "a");
 const b = prop(a, "b");
 const c = prop(b, "c");
 const f = prop(a, "f");
 
 test("always returns the same base lens", () => {
-  const a = createRawLens();
-  const b = createRawLens();
+  const a = createBasicLens();
+  const b = createBasicLens();
 
   expect(a).toBe(b);
 });
