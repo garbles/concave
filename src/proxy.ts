@@ -39,6 +39,7 @@ type BaseProxyLens<A> = {
   useState: ProxyUseState<A>;
   coalesce(fallback: NonNullable<A>): ProxyLens<NonNullable<A>>;
   [TO_LENS](): ProxyLens<A>;
+  $key: string;
 };
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & Array<ProxyLens<A[number]>>;
@@ -51,6 +52,9 @@ export type ProxyLens<A> =
   A extends AnyObject ? ObjectProxyLens<A> :
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
+
+let keyCounter = 0;
+const proxyLensKey = () => `ProxyLens(${keyCounter++})`;
 
 const isProxyable = (obj: any): obj is AnyArray | AnyObject => Array.isArray(obj) || isObject(obj);
 
@@ -110,6 +114,7 @@ const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
 export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
   type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };
   const cache: LensCache = {};
+  const $key = proxyLensKey();
 
   let useState: unknown;
   let coalesce: unknown;
@@ -119,6 +124,10 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
     {},
     {
       get(_target, key) {
+        if (key === "$key") {
+          return $key;
+        }
+
         if (key === TO_LENS) {
           toLens ??= () => proxy;
           return toLens;
