@@ -51,19 +51,19 @@ beforeEach(() => {
 
 describe("useState", () => {
   test("creates a wrapper around a lens", () => {
-    const [state] = lens.useState();
+    const [state] = lens.use();
     expect(state).toMatchObject(globalState);
 
-    const [bState] = lens.a.b.useState();
+    const [bState] = lens.a.b.use();
     expect(bState).toEqual(globalState.a.b);
   });
 
   test("can update state", () => {
-    const [bState, setB] = lens.a.b.useState();
+    const [bState, setB] = lens.a.b.use();
 
     setB({ c: 500 });
 
-    const [nextBState] = lens.a.b.useState();
+    const [nextBState] = lens.a.b.use();
 
     expect(bState).not.toEqual(nextBState);
     expect(nextBState).toMatchObject({ c: 500 });
@@ -74,13 +74,13 @@ describe("useState", () => {
 
 describe("returning the same proxy lens", () => {
   test("returns the same proxy lens when toggled", () => {
-    const [state] = lens.useState();
+    const [state] = lens.use();
 
     expect(state.toLens()).toBe(lens);
   });
 
   test("from within lists of things", () => {
-    const [fState] = lens.a.f.useState();
+    const [fState] = lens.a.f.use();
 
     const first = fState[0];
 
@@ -88,12 +88,12 @@ describe("returning the same proxy lens", () => {
   });
 
   test("when a list is copied but the members stay the same", () => {
-    const [fState, setF] = lens.a.f.useState();
+    const [fState, setF] = lens.a.f.use();
     const f1 = fState[0];
 
     setF([...fState, { g: true }]);
 
-    const [nextFState] = lens.a.f.useState();
+    const [nextFState] = lens.a.f.use();
     const nextF1 = nextFState[0];
 
     expect(fState.length + 1).toEqual(nextFState.length);
@@ -103,14 +103,14 @@ describe("returning the same proxy lens", () => {
   });
 
   test("when an object is copied by the members stay the same", () => {
-    const [bState, setBState] = lens.a.b.useState();
-    const [dState] = lens.a.d.useState();
+    const [bState, setBState] = lens.a.b.use();
+    const [dState] = lens.a.d.use();
 
     const nextBState = { c: 5000 };
 
     setBState(nextBState);
 
-    const [aState] = lens.a.useState();
+    const [aState] = lens.a.use();
 
     expect(aState.b).toEqual(nextBState);
     expect(aState.d).toBe(dState);

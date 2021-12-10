@@ -1,25 +1,21 @@
 import { BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 
-const PROXY_VALUE = Symbol();
-const TO_LENS = Symbol();
-
 type AnyObject = { [key: string | symbol | number]: JSON };
 type AnyArray = JSON[];
 type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
+type Proxyable = AnyArray | AnyObject;
 
 type SetState<A> = (next: A) => void;
 type UseState<A> = () => readonly [A, SetState<A>];
-type ProxyUseState<A> = () => readonly [MaybeProxyValue<A>, SetState<A>];
+type UseProxyState<A> = () => readonly [MaybeProxyValue<A>, SetState<A>];
 type CreateUseState<S> = <A>(lens: BasicLens<S, A>) => UseState<A>;
 
 type LensFixtures<S, A> = {
   lens: BasicLens<S, A>;
   createUseState: CreateUseState<S>;
 };
-
-type MaybeProxyValue<A> = A extends AnyPrimitive ? A : ProxyValue<A>;
 
 type BaseProxyValue<A> = {
   toLens(): ProxyLens<A>;
@@ -35,8 +31,10 @@ type ProxyValue<A> =
   A extends AnyPrimitive ? A :
   never;
 
+type MaybeProxyValue<A> = A extends Proxyable ? ProxyValue<A> : A;
+
 type BaseProxyLens<A> = {
-  useState: ProxyUseState<A>;
+  use: UseProxyState<A>;
   [TO_LENS](): ProxyLens<A>;
   $key: string;
 };
@@ -52,23 +50,26 @@ export type ProxyLens<A> =
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
 
+const PROXY_VALUE = Symbol();
+const TO_LENS = Symbol();
+
 let keyCounter = 0;
 const proxyLensKey = () => `ProxyLens(${keyCounter++})`;
 
-const isProxyable = (obj: any): obj is AnyArray | AnyObject => Array.isArray(obj) || isObject(obj);
+const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): ProxyUseState<A> => {
+const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxyState<A> => {
   const useState = fixtures.createUseState(fixtures.lens);
 
   return () => {
     const [state, setState] = useState();
-    const next = createMaybeProxyValue(state, lens);
+    const next = maybeCreateProxyValue(state, lens);
 
     return [next, setState];
   };
 };
 
-const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
+const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
   if (!isProxyable(obj)) {
     return obj as MaybeProxyValue<A>;
   }
@@ -77,6 +78,7 @@ const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
     return (obj as any)[PROXY_VALUE];
   }
 
+  // TODO: throw on delete or set methods
   const proxy = new Proxy(obj, {
     get(target, key) {
       if (key === PROXY_VALUE) {
@@ -90,7 +92,7 @@ const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
       const nextValue = target[key as keyof A];
       const nextLens = (lens as any)[key];
 
-      return createMaybeProxyValue(nextValue, nextLens);
+      return maybeCreateProxyValue(nextValue, nextLens);
     },
   }) as ProxyValue<A>;
 
@@ -107,6 +109,7 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
   let useState: unknown;
   let toLens: unknown;
 
+  // TODO: throw on delete or set methods
   const proxy = new Proxy(
     {},
     {

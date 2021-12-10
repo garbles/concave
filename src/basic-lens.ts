@@ -38,7 +38,10 @@ export const refine = <S extends {}, A, B>(
   };
 };
 
-export const prop = <S extends {}, A, K extends keyof A>(sa: BasicLens<S, A>, key: K): BasicLens<S, A[K]> => {
+export const prop = <S extends {}, A extends {}, K extends keyof A>(
+  sa: BasicLens<S, A>,
+  key: K
+): BasicLens<S, A[K]> => {
   return refine(
     sa,
     (state) => state[key],

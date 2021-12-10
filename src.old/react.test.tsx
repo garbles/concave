@@ -23,7 +23,7 @@ const initialState = { a: { b: { c: "cool" }, d: { e: 0 } } };
 const { LensProvider, StatefulLensProvider } = create<State>();
 
 const App = (props: { state: ProxyLens<State> }) => {
-  const [c, setC] = props.state.a.b.c.useState();
+  const [c, setC] = props.state.a.b.c.use();
 
   const onClick = () => setC(c + "!");
 
@@ -62,7 +62,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   const bRenderCount = jest.fn();
 
   const E = React.memo((props: { state: ProxyLens<State> }) => {
-    const [e] = props.state.a.d.e.useState();
+    const [e] = props.state.a.d.e.use();
 
     eRenderCount();
 
@@ -70,7 +70,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   });
 
   const B = React.memo((props: { state: ProxyLens<State> }) => {
-    const [b] = props.state.a.b.useState();
+    const [b] = props.state.a.b.use();
 
     bRenderCount();
 
