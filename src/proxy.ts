@@ -55,30 +55,17 @@ export type ProxyLens<A> =
 const isProxyable = (obj: any): obj is AnyArray | AnyObject => Array.isArray(obj) || isObject(obj);
 
 const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): ProxyUseState<A> => {
-  const cache = new WeakMap<any, ProxyValue<A>>();
   const useState = fixtures.createUseState(fixtures.lens);
 
   return () => {
     const [state, setState] = useState();
+    const next = createMaybeProxyValue(state, lens);
 
-    if (!isProxyable(state)) {
-      return [state, setState] as [MaybeProxyValue<A>, SetState<A>];
-    }
-
-    // TODO: attach directly to the value
-    let cached = cache.get(state);
-
-    if (!cached) {
-      cached = createProxyValue<A>(state, lens);
-      cache.set(state, cached);
-    }
-
-    return [cached, setState] as [MaybeProxyValue<A>, SetState<A>];
+    return [next, setState];
   };
 };
 
-const createCoalesce =
-  <S, A>(fixtures: LensFixtures<S, A>) =>
+const createCoalesce = <S, A>(fixtures: LensFixtures<S, A>) => {
   (fallback: NonNullable<A>): ProxyLens<NonNullable<A>> => {
     const nextFixtures = {
       ...fixtures,
@@ -87,34 +74,37 @@ const createCoalesce =
 
     return createProxyLens(nextFixtures);
   };
+};
 
-const createProxyValue = <A extends {}>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
-  return new Proxy<A>(obj, {
+const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
+  if (!isProxyable(obj)) {
+    return obj as MaybeProxyValue<A>;
+  }
+
+  if ((obj as any)[PROXY_VALUE]) {
+    return (obj as any)[PROXY_VALUE];
+  }
+
+  const proxy = new Proxy(obj, {
     get(target, key) {
       if (key === PROXY_VALUE) {
-        return (target as any)[PROXY_VALUE];
+        return proxy;
       }
 
       if (key === "toLens") {
         return lens[TO_LENS];
       }
 
-      const value = target[key as keyof A];
+      const nextValue = target[key as keyof A];
+      const nextLens = (lens as any)[key];
 
-      if (!isProxyable(value)) {
-        return value;
-      }
-
-      if ((value as any)[PROXY_VALUE] === undefined) {
-        const nextLens = (lens as ObjectProxyLens<A>)[key as keyof A];
-        const cached = createProxyValue(value, nextLens as any);
-
-        (value as any)[PROXY_VALUE] = cached;
-      }
-
-      return (value as any)[PROXY_VALUE];
+      return createMaybeProxyValue(nextValue, nextLens);
     },
   }) as ProxyValue<A>;
+
+  (obj as any)[PROXY_VALUE] = proxy;
+
+  return proxy as MaybeProxyValue<A>;
 };
 
 export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
@@ -144,10 +134,6 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
           return coalesce;
         }
 
-        /**
-         * Potential memory leak if the keys are unbounded
-         * TODO: setup manual garbage collection.
-         */
         if (lensCache[key as keyof A] === undefined) {
           const nextFixtures = {
             ...fixtures,

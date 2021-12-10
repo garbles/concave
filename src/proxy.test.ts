@@ -66,7 +66,7 @@ describe("useState", () => {
     const [nextBState] = lens.a.b.useState();
 
     expect(bState).not.toEqual(nextBState);
-    expect(nextBState).toEqual({ c: 500 });
+    expect(nextBState).toMatchObject({ c: 500 });
   });
 
   test("can specify defaults when a value is optional", () => {});
