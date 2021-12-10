@@ -1,4 +1,5 @@
 import { BasicLens, prop, coalesce } from "./basic-lens";
+import { isObject } from "./is-object";
 
 const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
@@ -51,10 +52,7 @@ export type ProxyLens<A> =
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
 
-// invert this to proxyable instead
-type Unproxyable = AnyPrimitive | ((...args: any[]) => any) | Function;
-const unproxyable = ["number", "bigint", "string", "boolean", "undefined", "symbol", "function"];
-const isUnproxyable = (obj: unknown): obj is Unproxyable => obj === null || unproxyable.includes(typeof obj);
+const isProxyable = (obj: any): obj is AnyArray | AnyObject => Array.isArray(obj) || isObject(obj);
 
 const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): ProxyUseState<A> => {
   const cache = new WeakMap<any, ProxyValue<A>>();
@@ -63,7 +61,7 @@ const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>):
   return () => {
     const [state, setState] = useState();
 
-    if (isUnproxyable(state)) {
+    if (!isProxyable(state)) {
       return [state, setState] as [MaybeProxyValue<A>, SetState<A>];
     }
 
@@ -90,40 +88,34 @@ const createCoalesce =
     return createProxyLens(nextFixtures);
   };
 
-// TODO: attach directly to the value
-const valueCache: WeakMap<any, ProxyValue<any>> = new WeakMap();
-
 const createProxyValue = <A extends {}>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
   return new Proxy<A>(obj, {
     get(target, key) {
+      if (key === PROXY_VALUE) {
+        return (target as any)[PROXY_VALUE];
+      }
+
       if (key === "toLens") {
         return lens[TO_LENS];
       }
 
       const value = target[key as keyof A];
 
-      if (isUnproxyable(value)) {
+      if (!isProxyable(value)) {
         return value;
-      } else {
-        if ((value as any)[PROXY_VALUE]) {
-        }
-
-        let cached = valueCache.get(value);
-
-        if (!cached) {
-          const nextLens = (lens as ObjectProxyLens<A>)[key as keyof A];
-          cached = createProxyValue(value, nextLens as any);
-          valueCache.set(value, cached);
-        }
-
-        return cached;
       }
+
+      if ((value as any)[PROXY_VALUE] === undefined) {
+        const nextLens = (lens as ObjectProxyLens<A>)[key as keyof A];
+        const cached = createProxyValue(value, nextLens as any);
+
+        (value as any)[PROXY_VALUE] = cached;
+      }
+
+      return (value as any)[PROXY_VALUE];
     },
   }) as ProxyValue<A>;
 };
-
-// useState cache?
-// proxyCache?
 
 export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
   type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };

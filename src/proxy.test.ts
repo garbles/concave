@@ -52,7 +52,7 @@ beforeEach(() => {
 describe("useState", () => {
   test("creates a wrapper around a lens", () => {
     const [state] = lens.useState();
-    expect(state).toEqual(globalState);
+    expect(state).toMatchObject(globalState);
 
     const [bState] = lens.a.b.useState();
     expect(bState).toEqual(globalState.a.b);
@@ -98,10 +98,11 @@ describe("returning the same proxy lens", () => {
 
     expect(fState.length + 1).toEqual(nextFState.length);
     expect(f1.toLens()).toBe(nextF1.toLens()); // the lens should be the same
+    expect(nextFState.toLens()).toBe(lens.a.f);
     expect(f1).toBe(nextF1); // the proxy should have the same value
   });
 
-  test.todo("when an object is copied by the members stay the same");
+  test("when an object is copied by the members stay the same", () => {});
 });
 
 // describe("compose", () => {

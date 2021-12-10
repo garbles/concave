@@ -1,4 +1,4 @@
-const isObject = (obj: any): obj is object => Object.prototype.toString.call(obj) === "[object Object]";
+import { isObject } from "./is-object";
 
 const deepCopy = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 
