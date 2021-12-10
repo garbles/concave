@@ -102,7 +102,23 @@ describe("returning the same proxy lens", () => {
     expect(f1).toBe(nextF1); // the proxy should have the same value
   });
 
-  test("when an object is copied by the members stay the same", () => {});
+  test("when an object is copied by the members stay the same", () => {
+    const [bState, setBState] = lens.a.b.useState();
+    const [dState] = lens.a.d.useState();
+
+    const nextBState = { c: 5000 };
+
+    setBState(nextBState);
+
+    const [aState] = lens.a.useState();
+
+    expect(aState.b).toEqual(nextBState);
+    expect(aState.d).toBe(dState);
+    expect(aState.d.toLens()).toBe(lens.a.d);
+    expect(dState.toLens()).toBe(lens.a.d);
+    expect(bState.toLens()).toBe(lens.a.b);
+    expect(bState.toLens()).toBe(aState.b.toLens());
+  });
 });
 
 // describe("compose", () => {

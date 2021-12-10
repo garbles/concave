@@ -109,7 +109,7 @@ const createMaybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
 
 export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
   type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };
-  const lensCache: LensCache = {};
+  const cache: LensCache = {};
 
   let useState: unknown;
   let coalesce: unknown;
@@ -134,17 +134,17 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
           return coalesce;
         }
 
-        if (lensCache[key as keyof A] === undefined) {
+        if (cache[key as keyof A] === undefined) {
           const nextFixtures = {
             ...fixtures,
             lens: prop(fixtures.lens, key as keyof A),
           };
 
           const nextProxy = createProxyLens(nextFixtures);
-          lensCache[key as keyof A] = nextProxy;
+          cache[key as keyof A] = nextProxy;
         }
 
-        return lensCache[key as keyof A];
+        return cache[key as keyof A];
       },
     }
   ) as ProxyLens<A>;
