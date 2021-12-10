@@ -106,7 +106,7 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
   const cache: LensCache = {};
   const $key = proxyLensKey();
 
-  let useState: unknown;
+  let use: unknown;
   let toLens: unknown;
 
   // TODO: throw on delete or set methods
@@ -123,9 +123,9 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
           return toLens;
         }
 
-        if (key === "useState") {
-          useState ??= createUseState(fixtures, proxy);
-          return useState;
+        if (key === "use") {
+          use ??= createUseState(fixtures, proxy);
+          return use;
         }
 
         if (cache[key as keyof A] === undefined) {

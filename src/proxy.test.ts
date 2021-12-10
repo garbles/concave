@@ -69,7 +69,13 @@ describe("useState", () => {
     expect(nextBState).toMatchObject({ c: 500 });
   });
 
-  test("can specify defaults when a value is optional", () => {});
+  test("does not expose `toLens` on primitive values", () => {
+    const [bState] = lens.a.b.use();
+    const [cState] = lens.a.b.c.use();
+
+    expect(bState).toHaveProperty("toLens");
+    expect(cState).not.toHaveProperty("toLens");
+  });
 });
 
 describe("returning the same proxy lens", () => {
@@ -120,47 +126,3 @@ describe("returning the same proxy lens", () => {
     expect(bState.toLens()).toBe(aState.b.toLens());
   });
 });
-
-// describe("compose", () => {
-//   test("mapping function for a lens", () => {
-//     const eLens = lens.a.d.e;
-
-//     const lengthLens = eLens.compose<number>({
-//       get(state) {
-//         return state.length;
-//       },
-//       set(state, count) {
-//         return `${state}${"!".repeat(count)}`;
-//       },
-//     });
-
-//     const [e1, setE] = eLens.useState();
-//     const [length1, addExclamations] = lengthLens.useState();
-
-//     expect(e1).toEqual("cool");
-//     expect(length1).toEqual(4);
-
-//     addExclamations(3);
-
-//     const [e2] = eLens.useState();
-//     const [length2, addMoreExclamations] = lengthLens.useState();
-
-//     expect(e2).toEqual("cool!!!");
-//     expect(length2).toEqual(7);
-
-//     addMoreExclamations(2);
-//     addExclamations(5);
-
-//     const [e3] = eLens.useState();
-
-//     expect(e3).toEqual("cool!!!!!!!!!!");
-
-//     setE("potato");
-
-//     const [e4] = eLens.useState();
-//     const [length4] = lengthLens.useState();
-
-//     expect(e4).toEqual("potato");
-//     expect(length4).toEqual(6);
-//   });
-// });
