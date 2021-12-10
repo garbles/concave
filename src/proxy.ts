@@ -1,4 +1,4 @@
-import { BasicLens, prop, coalesce } from "./basic-lens";
+import { BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 
 const PROXY_VALUE = Symbol();
@@ -37,7 +37,6 @@ type ProxyValue<A> =
 
 type BaseProxyLens<A> = {
   useState: ProxyUseState<A>;
-  coalesce(fallback: NonNullable<A>): ProxyLens<NonNullable<A>>;
   [TO_LENS](): ProxyLens<A>;
   $key: string;
 };
@@ -66,17 +65,6 @@ const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>):
     const next = createMaybeProxyValue(state, lens);
 
     return [next, setState];
-  };
-};
-
-const createCoalesce = <S, A>(fixtures: LensFixtures<S, A>) => {
-  (fallback: NonNullable<A>): ProxyLens<NonNullable<A>> => {
-    const nextFixtures = {
-      ...fixtures,
-      lens: coalesce(fixtures.lens, fallback),
-    };
-
-    return createProxyLens(nextFixtures);
   };
 };
 
@@ -117,7 +105,6 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
   const $key = proxyLensKey();
 
   let useState: unknown;
-  let coalesce: unknown;
   let toLens: unknown;
 
   const proxy = new Proxy(
@@ -136,11 +123,6 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
         if (key === "useState") {
           useState ??= createUseState(fixtures, proxy);
           return useState;
-        }
-
-        if (key === "coalesce") {
-          coalesce ??= createCoalesce(fixtures);
-          return coalesce;
         }
 
         if (cache[key as keyof A] === undefined) {

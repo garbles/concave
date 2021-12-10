@@ -50,19 +50,3 @@ export const prop = <S extends {}, A, K extends keyof A>(sa: BasicLens<S, A>, ke
     }
   );
 };
-
-export const compose = <S extends {}, A, B>(sa: BasicLens<S, A>, ab: BasicLens<A, B>): BasicLens<S, B> => {
-  return refine(sa, ab.get, ab.set);
-};
-
-export const coalesce = <S, A>(lens: BasicLens<S, A>, fallback: NonNullable<A>): BasicLens<S, NonNullable<A>> => {
-  return compose(lens, {
-    get(state) {
-      return state ?? fallback;
-    },
-
-    set(state, value) {
-      return value;
-    },
-  });
-};

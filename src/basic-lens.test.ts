@@ -1,4 +1,4 @@
-import { coalesce, createBasicLens, prop } from "./basic-lens";
+import { createBasicLens, prop } from "./basic-lens";
 
 type State = {
   a: {
@@ -54,13 +54,4 @@ test("only updates parts of the data", () => {
   const next = b.set(state, { c: 0 });
 
   expect(next.a.d).toBe(state.a.d);
-});
-
-describe("coalesce", () => {
-  test("removes nullability", () => {
-    const next = coalesce(f, "some default");
-
-    expect(f.get(state)).toEqual(undefined);
-    expect(next.get(state)).toEqual("some default");
-  });
 });
