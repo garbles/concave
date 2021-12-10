@@ -21,7 +21,7 @@ export const refine = <S extends {}, A, B>(
   get: (value: A) => B,
   set: (state: A, value: B) => A
 ): BasicLens<S, B> => {
-  return Object.freeze({
+  return {
     get(state) {
       const prev = lens.get(state);
       const next = get(prev);
@@ -35,7 +35,7 @@ export const refine = <S extends {}, A, B>(
 
       return lens.set(state, next);
     },
-  });
+  };
 };
 
 export const prop = <S extends {}, A, K extends keyof A>(sa: BasicLens<S, A>, key: K): BasicLens<S, A[K]> => {
