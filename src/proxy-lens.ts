@@ -120,7 +120,7 @@ const maybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
   }) as ProxyValue<A>;
 
   /**
-   * Do not allow `PROXY_VALUE` to be enumerable so that
+   * Do not allow `PROXY_VALUE` to be enumerable so that:
    *
    * 1. Creating a shallow copy `{ ...obj }` will ignore it. This ensures the
    *    proxy value is forgotten when the actual value changes.
