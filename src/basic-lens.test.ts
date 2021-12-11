@@ -1,4 +1,4 @@
-import { createBasicLens, prop } from "./basic-lens";
+import { basicLens, prop } from "./basic-lens";
 
 type State = {
   a: {
@@ -23,15 +23,15 @@ const state: State = {
   },
 };
 
-const lens = createBasicLens<State>();
+const lens = basicLens<State>();
 const a = prop(lens, "a");
 const b = prop(a, "b");
 const c = prop(b, "c");
 const f = prop(a, "f");
 
 test("always returns the same base lens", () => {
-  const a = createBasicLens();
-  const b = createBasicLens();
+  const a = basicLens();
+  const b = basicLens();
 
   expect(a).toBe(b);
 });

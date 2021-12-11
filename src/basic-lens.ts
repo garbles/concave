@@ -14,7 +14,7 @@ const identity: BasicLens<any, any> = Object.freeze({
   },
 });
 
-export const createBasicLens = <S>(): BasicLens<S, S> => identity;
+export const basicLens = <S>(): BasicLens<S, S> => identity;
 
 export const refine = <S extends {}, A, B>(
   lens: BasicLens<S, A>,

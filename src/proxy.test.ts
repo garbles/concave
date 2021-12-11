@@ -1,5 +1,5 @@
-import { createProxyLens, ProxyLens } from "./proxy";
-import { createBasicLens, BasicLens } from "./basic-lens";
+import { proxyLens, ProxyLens } from "./proxy";
+import { basicLens, BasicLens } from "./basic-lens";
 
 type State = {
   a: {
@@ -30,7 +30,7 @@ const initialState = (): State => ({
 let globalState: State;
 let lens: ProxyLens<State>;
 
-const createUseState = <A>(lens: BasicLens<State, A>) => {
+const createUse = <A>(lens: BasicLens<State, A>) => {
   return () =>
     [
       lens.get(globalState),
@@ -43,9 +43,9 @@ const createUseState = <A>(lens: BasicLens<State, A>) => {
 beforeEach(() => {
   globalState = initialState();
 
-  lens = createProxyLens<State, State>({
-    createUseState,
-    lens: createBasicLens(),
+  lens = proxyLens<State, State>({
+    lens: basicLens(),
+    createUse,
   });
 });
 

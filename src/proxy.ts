@@ -7,14 +7,14 @@ type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
 type Proxyable = AnyArray | AnyObject;
 
-type SetState<A> = (next: A) => void;
-type UseState<A> = () => readonly [A, SetState<A>];
-type UseProxyState<A> = () => readonly [MaybeProxyValue<A>, SetState<A>];
-type CreateUseState<S> = <A>(lens: BasicLens<S, A>) => UseState<A>;
+type SetNext<A> = (next: A) => void;
+type Use<A> = () => readonly [A, SetNext<A>];
+type UseProxy<A> = () => readonly [MaybeProxyValue<A>, SetNext<A>];
+type CreateUse<S> = <A>(lens: BasicLens<S, A>) => Use<A>;
 
 type LensFixtures<S, A> = {
   lens: BasicLens<S, A>;
-  createUseState: CreateUseState<S>;
+  createUse: CreateUse<S>;
 };
 
 type BaseProxyValue<A> = {
@@ -34,9 +34,27 @@ type ProxyValue<A> =
 type MaybeProxyValue<A> = A extends Proxyable ? ProxyValue<A> : A;
 
 type BaseProxyLens<A> = {
-  use: UseProxyState<A>;
-  [TO_LENS](): ProxyLens<A>;
+  /**
+   * Collapses the `ProxyLens` into a `ProxyValue`.
+   */
+  use: UseProxy<A>;
+  /**
+   * A unique key for cases when you need a key. e.g. A React list.
+   *
+   * @example
+   * const [list] = state.use();
+   *
+   * list.map(value => {
+   *   const lens = value.toLens();
+   *
+   *   return <ListItem key={lens.$key} state={lens} />;
+   * });
+   */
   $key: string;
+  /**
+   * Internal. Only called by `ProxyValue#toLens`.
+   */
+  [TO_LENS](): ProxyLens<A>;
 };
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
@@ -58,18 +76,18 @@ const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxyState<A> => {
-  const useState = fixtures.createUseState(fixtures.lens);
+const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxy<A> => {
+  const useState = fixtures.createUse(fixtures.lens);
 
   return () => {
     const [state, setState] = useState();
-    const next = maybeCreateProxyValue(state, lens);
+    const next = maybeProxyValue(state, lens);
 
     return [next, setState];
   };
 };
 
-const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
+const maybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
   if (!isProxyable(obj)) {
     return obj as MaybeProxyValue<A>;
   }
@@ -91,7 +109,7 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
       const nextValue = target[key as keyof A];
       const nextLens = (lens as any)[key];
 
-      return maybeCreateProxyValue(nextValue, nextLens);
+      return maybeProxyValue(nextValue, nextLens);
     },
     set() {
       throw new Error("Cannot set property on ProxyValue");
@@ -103,9 +121,10 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
 
   /**
    * Do not allow `PROXY_VALUE` to be enumerable so that
-   * creating a shallow copy `{ ...obj }` will ignore it.
-   * We need to do this so that the proxy value is forgotten
-   * when the actual value changes.
+   *
+   * 1. Creating a shallow copy `{ ...obj }` will ignore it. This ensures the
+   *    proxy value is forgotten when the actual value changes.
+   * 2. It is not accessible outside of this module.
    */
   Object.defineProperty(obj, PROXY_VALUE, {
     get() {
@@ -117,22 +136,28 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
   return proxy as MaybeProxyValue<A>;
 };
 
-export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
+export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
   type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };
   const cache: LensCache = {};
-  const $key = proxyLensKey();
 
   let use: unknown;
   let toLens: unknown;
+  let $key: unknown;
 
   const proxy = new Proxy(
     {},
     {
       get(_target, key) {
         if (key === "$key") {
+          $key ??= proxyLensKey();
           return $key;
         }
 
+        /**
+         * This is attached to the proxy because the proxy never changes.
+         * So even if the underlying data changes, the `ProxyValue` wrapping
+         * it will always refer to the same `toLens` function.
+         */
         if (key === TO_LENS) {
           toLens ??= () => proxy;
           return toLens;
@@ -149,7 +174,7 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
             lens: prop(fixtures.lens, key as keyof A),
           };
 
-          const nextProxy = createProxyLens(nextFixtures);
+          const nextProxy = proxyLens(nextFixtures);
           cache[key as keyof A] = nextProxy;
         }
 

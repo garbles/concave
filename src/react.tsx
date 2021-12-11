@@ -1,47 +1,18 @@
 /// <reference types="react/next" />
 
 import React from "react";
-import { createProxyLens } from "./proxy";
-import { createBasicLens, BasicLens } from "./basic-lens";
+import { proxyLens } from "./proxy";
+import { basicLens, BasicLens } from "./basic-lens";
+import { externalStore, ExternalStore } from "./external-store";
 
 type Nothing = typeof nothing;
-type Listener = () => void;
-type Unsubscribe = () => void;
-
-type ExternalStore<S> = {
-  subscribe(onStoreChange: Listener): Unsubscribe;
-  getSnapshot(): S;
-  apply(setter: (state: S) => S): void;
-};
-
 const nothing = Symbol();
-
-const createExternalStore = <S,>(initialState: S): ExternalStore<S> => {
-  const listeners = new Set<Listener>();
-  let state = initialState;
-
-  return {
-    subscribe(sub) {
-      listeners.add(sub);
-      return () => listeners.delete(sub);
-    },
-
-    getSnapshot() {
-      return state;
-    },
-
-    apply(set) {
-      state = set(state);
-      listeners.forEach((fn) => fn());
-    },
-  };
-};
 
 export const create = <S,>() => {
   const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(nothing);
   ExternalStoreContext.displayName = "Lens(ExternalStoreContext)";
 
-  const createUseState =
+  const createUse =
     <A,>(lens: BasicLens<S, A>) =>
     () => {
       const store = React.useContext(ExternalStoreContext);
@@ -56,8 +27,10 @@ export const create = <S,>() => {
       return [state, setState] as const;
     };
 
-  const rawLens = createBasicLens<S>();
-  const lens = createProxyLens({ lens: rawLens, createUseState });
+  const lens = proxyLens<S, S>({
+    lens: basicLens(),
+    createUse,
+  });
 
   type LensProviderProps = {
     value: S;
@@ -71,7 +44,7 @@ export const create = <S,>() => {
   const LensProvider: ILensProvider = (props) => {
     const storeRef = React.useRef<ExternalStore<S>>();
     if (!storeRef.current) {
-      storeRef.current = createExternalStore(props.value);
+      storeRef.current = externalStore(props.value);
     }
     let store = storeRef.current;
 
