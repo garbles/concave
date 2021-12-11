@@ -12,7 +12,6 @@ type ExternalStore<S> = {
   subscribe: (onStoreChange: Listener) => Unsubscribe;
   getSnapshot: () => S;
   apply(setter: (state: S) => S): void;
-  getSubscriberCount(): number;
 };
 
 const nothing = Symbol();
@@ -34,10 +33,6 @@ const createExternalStore = <S,>(initialState: S): ExternalStore<S> => {
     apply(set) {
       state = set(state);
       listeners.forEach((fn) => fn());
-    },
-
-    getSubscriberCount() {
-      return listeners.size;
     },
   };
 };

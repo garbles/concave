@@ -52,7 +52,7 @@ beforeEach(() => {
 describe("useState", () => {
   test("creates a wrapper around a lens", () => {
     const [state] = lens.use();
-    expect(state).toMatchObject(globalState);
+    expect(state).toEqual(globalState);
 
     const [bState] = lens.a.b.use();
     expect(bState).toEqual(globalState.a.b);
