@@ -9,8 +9,8 @@ type Listener = () => void;
 type Unsubscribe = () => void;
 
 type ExternalStore<S> = {
-  subscribe: (onStoreChange: Listener) => Unsubscribe;
-  getSnapshot: () => S;
+  subscribe(onStoreChange: Listener): Unsubscribe;
+  getSnapshot(): S;
   apply(setter: (state: S) => S): void;
 };
 
