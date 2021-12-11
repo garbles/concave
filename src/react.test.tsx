@@ -2,10 +2,10 @@
  * @jest-environment jsdom
  */
 
-import React from "react";
 import { act, render, screen } from "@testing-library/react";
+import React from "react";
+import { ProxyLens } from "./proxy-lens";
 import { create } from "./react";
-import { ProxyLens } from "../src/proxy";
 
 type State = {
   a: {

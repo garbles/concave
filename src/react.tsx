@@ -1,9 +1,10 @@
 /// <reference types="react/next" />
 
 import React from "react";
-import { proxyLens } from "./proxy";
 import { basicLens, BasicLens } from "./basic-lens";
 import { externalStore, ExternalStore } from "./external-store";
+import { proxyLens } from "./proxy-lens";
+import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
 
 type Nothing = typeof nothing;
 const nothing = Symbol();
@@ -21,10 +22,7 @@ export const create = <S,>() => {
         throw new Error("Cannot call `lens.use()` in a component outside of <LensProvider />");
       }
 
-      const state = React.useSyncExternalStore(store.subscribe, () => lens.get(store.getSnapshot()));
-      const setState = React.useCallback((next: A) => store.apply((s) => lens.set(s, next)), [store]);
-
-      return [state, setState] as const;
+      return useSyncExternalStoreWithLens(store, lens);
     };
 
   const lens = proxyLens<S, S>({

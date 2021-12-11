@@ -1,5 +1,5 @@
-import { proxyLens, ProxyLens } from "./proxy";
 import { basicLens, BasicLens } from "./basic-lens";
+import { proxyLens, ProxyLens } from "./proxy-lens";
 
 type State = {
   a: {
