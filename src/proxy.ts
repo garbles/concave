@@ -74,8 +74,8 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
     return obj as MaybeProxyValue<A>;
   }
 
-  if ((obj as any)[PROXY_VALUE]) {
-    return (obj as any)[PROXY_VALUE];
+  if (Reflect.has(obj, PROXY_VALUE)) {
+    return Reflect.get(obj, PROXY_VALUE);
   }
 
   const proxy = new Proxy(obj, {
@@ -103,9 +103,9 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
 
   /**
    * Do not allow `PROXY_VALUE` to be enumerable so that
-   * creating a shallow copy `{ ...obj }` will ignore it. We
-   * need to do this so that the proxy value is busted when
-   * the actual value changes.
+   * creating a shallow copy `{ ...obj }` will ignore it.
+   * We need to do this so that the proxy value is forgotten
+   * when the actual value changes.
    */
   Object.defineProperty(obj, PROXY_VALUE, {
     get() {
