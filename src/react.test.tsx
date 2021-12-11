@@ -68,14 +68,14 @@ test("updates", () => {
   expect(el.innerHTML).toEqual("cool!!!!");
 });
 
-test.only("does not re-render adjacent that do not listen to same state elements", () => {
-  const eRenderCount = jest.fn();
-  const bRenderCount = jest.fn();
+test("does not re-render adjacent that do not listen to same state elements", () => {
+  let eRenderCount = 0;
+  let bRenderCount = 0;
 
   const E = React.memo((props: { state: ProxyLens<State> }) => {
-    const [e] = props.state.a.d.e.use();
+    props.state.a.d.e.use();
 
-    eRenderCount();
+    eRenderCount++;
 
     return <div />;
   });
@@ -83,7 +83,7 @@ test.only("does not re-render adjacent that do not listen to same state elements
   const B = React.memo((props: { state: ProxyLens<State> }) => {
     const [b] = props.state.a.b.use();
 
-    bRenderCount();
+    bRenderCount++;
 
     return <div data-testid="b" data-b={JSON.stringify(b)} />;
   });
@@ -99,8 +99,8 @@ test.only("does not re-render adjacent that do not listen to same state elements
   const el = screen.getByTestId("element");
   const b = screen.getByTestId("b");
 
-  expect(eRenderCount).toHaveBeenCalledTimes(1);
-  expect(bRenderCount).toHaveBeenCalledTimes(1);
+  expect(eRenderCount).toEqual(1);
+  expect(bRenderCount).toEqual(1);
 
   expect(JSON.parse(b.dataset.b ?? "")).toEqual({ c: "cool" });
 
@@ -120,8 +120,8 @@ test.only("does not re-render adjacent that do not listen to same state elements
     el.click();
   });
 
-  expect(eRenderCount).toHaveBeenCalledTimes(1);
-  expect(bRenderCount).toHaveBeenCalledTimes(5);
+  expect(eRenderCount).toEqual(1);
+  expect(bRenderCount).toEqual(5);
   expect(JSON.parse(b.dataset.b ?? "")).toEqual({ c: "cool!!!!" });
 });
 
@@ -173,3 +173,5 @@ test("renders sets new props into the lens", () => {
 
   expect(el.innerHTML).toEqual("goodbye!");
 });
+
+test.todo("only re-renders new members of a list");
