@@ -9,7 +9,7 @@ type Proxyable = AnyArray | AnyObject;
 
 type SetNext<A> = (next: A) => void;
 type Use<A> = () => readonly [A, SetNext<A>];
-type UseProxy<A> = () => readonly [MaybeProxyValue<A>, SetNext<A>];
+type UseProxy<A> = () => readonly [ProxyValue<A>, SetNext<A>];
 type CreateUse<S> = <A>(lens: BasicLens<S, A>) => Use<A>;
 
 type LensFixtures<S, A> = {
@@ -30,8 +30,6 @@ type ProxyValue<A> =
   A extends AnyObject ? ObjectProxyValue<A> :
   A extends AnyPrimitive ? A :
   never;
-
-type MaybeProxyValue<A> = A extends Proxyable ? ProxyValue<A> : A;
 
 type BaseProxyLens<A> = {
   /**
@@ -81,15 +79,15 @@ const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>):
 
   return () => {
     const [state, setState] = useState();
-    const next = maybeProxyValue(state, lens);
+    const next = proxyValue(state, lens);
 
     return [next, setState];
   };
 };
 
-const maybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
+const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
   if (!isProxyable(obj)) {
-    return obj as MaybeProxyValue<A>;
+    return obj as ProxyValue<A>;
   }
 
   if (Reflect.has(obj, PROXY_VALUE)) {
@@ -109,7 +107,7 @@ const maybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
       const nextValue = target[key as keyof A];
       const nextLens = (lens as any)[key];
 
-      return maybeProxyValue(nextValue, nextLens);
+      return proxyValue(nextValue, nextLens);
     },
     set() {
       throw new Error("Cannot set property on ProxyValue");
@@ -133,7 +131,7 @@ const maybeProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A> => {
     enumerable: false,
   });
 
-  return proxy as MaybeProxyValue<A>;
+  return proxy;
 };
 
 export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
