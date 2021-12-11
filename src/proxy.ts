@@ -39,7 +39,7 @@ type BaseProxyLens<A> = {
   $key: string;
 };
 
-type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & Array<ProxyLens<A[number]>>;
+type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
 type ObjectProxyLens<A extends AnyObject> = BaseProxyLens<A> & { [K in keyof A]: ProxyLens<A[K]> };
 type PrimitiveProxyLens<A extends AnyPrimitive> = BaseProxyLens<A>;
 
@@ -54,7 +54,7 @@ const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
 
 let keyCounter = 0;
-const proxyLensKey = () => `ProxyLens(${keyCounter++})`;
+const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
@@ -78,7 +78,6 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
     return (obj as any)[PROXY_VALUE];
   }
 
-  // TODO: throw on delete or set methods
   const proxy = new Proxy(obj, {
     get(target, key) {
       if (key === PROXY_VALUE) {
@@ -93,6 +92,12 @@ const maybeCreateProxyValue = <A>(obj: A, lens: ProxyLens<A>): MaybeProxyValue<A
       const nextLens = (lens as any)[key];
 
       return maybeCreateProxyValue(nextValue, nextLens);
+    },
+    set() {
+      throw new Error("Cannot set property on ProxyValue");
+    },
+    deleteProperty() {
+      throw new Error("Cannot delete property on ProxyValue");
     },
   }) as ProxyValue<A>;
 
@@ -109,7 +114,6 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
   let use: unknown;
   let toLens: unknown;
 
-  // TODO: throw on delete or set methods
   const proxy = new Proxy(
     {},
     {
@@ -139,6 +143,12 @@ export const createProxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A
         }
 
         return cache[key as keyof A];
+      },
+      set() {
+        throw new Error("Cannot set property on ProxyLens");
+      },
+      deleteProperty() {
+        throw new Error("Cannot delete property on ProxyLens");
       },
     }
   ) as ProxyLens<A>;

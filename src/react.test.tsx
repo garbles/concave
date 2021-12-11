@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { create } from "./react";
 import { ProxyLens } from "../src/proxy";
 
@@ -20,7 +20,7 @@ type State = {
 
 const initialState = { a: { b: { c: "cool" }, d: { e: 0 } } };
 
-const { LensProvider, StatefulLensProvider } = create<State>();
+const { LensProvider, lens } = create<State>();
 
 const App = (props: { state: ProxyLens<State> }) => {
   const [c, setC] = props.state.a.b.c.use();
@@ -35,7 +35,7 @@ const App = (props: { state: ProxyLens<State> }) => {
 };
 
 test("renders", () => {
-  render(<StatefulLensProvider initialValue={initialState}>{(lens) => <App state={lens} />}</StatefulLensProvider>);
+  render(<LensProvider.Stateful initialValue={initialState}>{<App state={lens} />}</LensProvider.Stateful>);
 
   const el = screen.getByTestId("element");
 
@@ -43,21 +43,32 @@ test("renders", () => {
 });
 
 test("updates", () => {
-  render(<StatefulLensProvider initialValue={initialState}>{(lens) => <App state={lens} />}</StatefulLensProvider>);
+  render(<LensProvider.Stateful initialValue={initialState}>{<App state={lens} />}</LensProvider.Stateful>);
 
   const el = screen.getByTestId("element");
 
   expect(el.innerHTML).toEqual("cool");
 
-  el.click();
-  el.click();
-  el.click();
-  el.click();
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
 
   expect(el.innerHTML).toEqual("cool!!!!");
 });
 
-test("does not re-render adjacent that do not listen to same state elements", () => {
+test.only("does not re-render adjacent that do not listen to same state elements", () => {
   const eRenderCount = jest.fn();
   const bRenderCount = jest.fn();
 
@@ -78,17 +89,11 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   });
 
   render(
-    <StatefulLensProvider initialValue={initialState}>
-      {(lens) => {
-        return (
-          <>
-            <App state={lens} />
-            <E state={lens} />
-            <B state={lens} />
-          </>
-        );
-      }}
-    </StatefulLensProvider>
+    <LensProvider.Stateful initialValue={initialState}>
+      <App state={lens} />
+      <E state={lens} />
+      <B state={lens} />
+    </LensProvider.Stateful>
   );
 
   const el = screen.getByTestId("element");
@@ -96,12 +101,24 @@ test("does not re-render adjacent that do not listen to same state elements", ()
 
   expect(eRenderCount).toHaveBeenCalledTimes(1);
   expect(bRenderCount).toHaveBeenCalledTimes(1);
+
   expect(JSON.parse(b.dataset.b ?? "")).toEqual({ c: "cool" });
 
-  el.click();
-  el.click();
-  el.click();
-  el.click();
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
 
   expect(eRenderCount).toHaveBeenCalledTimes(1);
   expect(bRenderCount).toHaveBeenCalledTimes(5);
@@ -118,7 +135,7 @@ test("renders sets new props into the lens", () => {
         state = next;
       }}
     >
-      {(lens) => <App state={lens} />}
+      <App state={lens} />
     </LensProvider>
   );
 
@@ -128,20 +145,31 @@ test("renders sets new props into the lens", () => {
 
   expect(el.innerHTML).toEqual("cool");
 
-  el.click();
+  act(() => {
+    el.click();
+  });
+
   state.a.b.c = "hello";
   rerender(make());
 
   expect(el.innerHTML).toEqual("hello");
 
-  el.click();
-  el.click();
+  act(() => {
+    el.click();
+  });
+
+  act(() => {
+    el.click();
+  });
 
   expect(el.innerHTML).toEqual("hello!!");
 
   state.a.b.c = "goodbye";
   rerender(make());
-  el.click();
+
+  act(() => {
+    el.click();
+  });
 
   expect(el.innerHTML).toEqual("goodbye!");
 });

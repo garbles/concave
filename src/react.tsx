@@ -1,6 +1,6 @@
 import React from "react";
 import { Context, createContext, useContextSelector } from "use-context-selector";
-import { createProxyLens, ProxyLens } from "./proxy";
+import { createProxyLens } from "./proxy";
 import { createBasicLens, BasicLens } from "./basic-lens";
 
 type Setter<S> = (fn: (state: S) => S) => void;
@@ -46,17 +46,20 @@ export const create = <S,>() => {
     };
 
   const rawLens = createBasicLens<S>();
-  const lens = createProxyLens(rawLens, createUseState);
+  const lens = createProxyLens({ lens: rawLens, createUseState });
 
   type LensProviderProps = {
     value: S;
     onChange(next: S): void;
-    children(lens: ProxyLens<S>): React.ReactNode;
   };
 
   const reducer = (state: S, set: (state: S) => S) => set(state);
 
-  const LensProvider: React.FC<LensProviderProps> = (props) => {
+  interface ILensProvider extends React.FC<LensProviderProps> {
+    Stateful: typeof StatefulLensProvider;
+  }
+
+  const LensProvider: ILensProvider = (props) => {
     /**
      * Use a reducer to ensure that updates are scheduled correctly with React.
      */
@@ -86,21 +89,21 @@ export const create = <S,>() => {
 
     return (
       <StateContext.Provider value={state}>
-        <SetStateContext.Provider value={dispatch}>{props.children(lens)}</SetStateContext.Provider>
+        <SetStateContext.Provider value={dispatch}>{props.children}</SetStateContext.Provider>
       </StateContext.Provider>
     );
   };
   LensProvider.displayName = "Lens(Provider)";
 
-  type StatefulLensProviderProps = {
+  type StatefulLensProviderProps = React.PropsWithChildren<{
     initialValue: S;
-    children(lens: ProxyLens<S>): React.ReactNode;
-  };
+  }>;
 
   type LensStateRef = {
     state: S;
   };
 
+  // attach as LensProvider.Stateful
   const StatefulLensProvider = React.forwardRef<LensStateRef, StatefulLensProviderProps>((props, ref) => {
     const [state, setState] = React.useState(props.initialValue);
 
@@ -114,8 +117,10 @@ export const create = <S,>() => {
   });
   StatefulLensProvider.displayName = "Lens(StatefulLensProvider)";
 
+  LensProvider.Stateful = StatefulLensProvider;
+
   return {
+    lens,
     LensProvider,
-    StatefulLensProvider,
   };
 };

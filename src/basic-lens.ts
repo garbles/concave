@@ -23,27 +23,23 @@ export const refine = <S extends {}, A, B>(
 ): BasicLens<S, B> => {
   return {
     get(state) {
-      const prev = lens.get(state);
-      const next = get(prev);
-
-      return next;
+      const a = lens.get(state);
+      return get(a);
     },
 
-    set(state, value) {
-      const prev = lens.get(state);
-      const next = set(prev, value);
-
-      return lens.set(state, next);
+    set(state, b) {
+      const a = lens.get(state);
+      return lens.set(state, set(a, b));
     },
   };
 };
 
 export const prop = <S extends {}, A extends {}, K extends keyof A>(
-  sa: BasicLens<S, A>,
+  lens: BasicLens<S, A>,
   key: K
 ): BasicLens<S, A[K]> => {
   return refine(
-    sa,
+    lens,
     (state) => state[key],
     (prev, next) => {
       const copy = shallowCopy(prev);
