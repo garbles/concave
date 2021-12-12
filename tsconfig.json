@@ -3,6 +3,7 @@
     "incremental": true,
     "target": "es2016",
     "lib": ["dom", "es2017"],
+    "declaration": true,
     "jsx": "react",
     "module": "commonjs",
     "outDir": "build",

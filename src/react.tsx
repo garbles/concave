@@ -6,6 +6,27 @@ import { externalStore, ExternalStore } from "./external-store";
 import { proxyLens } from "./proxy-lens";
 import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
 
+type StatefulLensProviderProps<S> = React.PropsWithChildren<{
+  initialValue: S;
+}>;
+
+type LensStateRef<S> = {
+  state: S;
+};
+
+type StatefulLensProviderComponent<S> = React.ForwardRefExoticComponent<
+  React.PropsWithoutRef<StatefulLensProviderProps<S>> & React.RefAttributes<LensStateRef<S>>
+>;
+
+type LensProviderProps<S> = {
+  value: S;
+  onChange(next: S): void;
+};
+
+interface LensProviderComponent<S> extends React.FC<LensProviderProps<S>> {
+  Stateful: StatefulLensProviderComponent<S>;
+}
+
 type Nothing = typeof nothing;
 const nothing = Symbol();
 
@@ -30,16 +51,7 @@ export const create = <S,>() => {
     createUse,
   });
 
-  type LensProviderProps = {
-    value: S;
-    onChange(next: S): void;
-  };
-
-  interface ILensProvider extends React.FC<LensProviderProps> {
-    Stateful: typeof StatefulLensProvider;
-  }
-
-  const LensProvider: ILensProvider = (props) => {
+  const LensProvider: LensProviderComponent<S> = (props) => {
     const storeRef = React.useRef<ExternalStore<S>>();
     if (!storeRef.current) {
       storeRef.current = externalStore(props.value);
@@ -60,15 +72,7 @@ export const create = <S,>() => {
   };
   LensProvider.displayName = "Lens(Provider)";
 
-  type StatefulLensProviderProps = React.PropsWithChildren<{
-    initialValue: S;
-  }>;
-
-  type LensStateRef = {
-    state: S;
-  };
-
-  const StatefulLensProvider = React.forwardRef<LensStateRef, StatefulLensProviderProps>((props, ref) => {
+  const StatefulLensProvider: StatefulLensProviderComponent<S> = React.forwardRef((props, ref) => {
     const [state, setState] = React.useState(props.initialValue);
 
     React.useImperativeHandle(ref, () => ({ state }), [state]);

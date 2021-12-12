@@ -7,7 +7,8 @@
   "author": "Gabe Scholz",
   "license": "MIT",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "rm -rf build && tsc"
   },
   "dependencies": {},
   "devDependencies": {
