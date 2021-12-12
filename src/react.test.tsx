@@ -270,3 +270,4 @@ test("only re-renders a list when new members of a list should a shouldUpdate co
 });
 
 test.todo("making a copy of data will remove the `toLens` call");
+test.todo("multiple hooks only trigger one re-render");

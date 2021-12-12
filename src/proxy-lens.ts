@@ -75,7 +75,7 @@ const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxy<A> => {
+const createUse = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxy<A> => {
   const use = fixtures.createUse(fixtures.lens);
 
   return (shouldUpdate) => {
@@ -163,7 +163,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         if (key === "use") {
-          use ??= createUseState(fixtures, proxy);
+          use ??= createUse(fixtures, proxy);
           return use;
         }
 
