@@ -16,26 +16,31 @@ type State = {
       e: number;
     };
   };
+  f: { g: boolean }[];
 };
 
-const initialState = { a: { b: { c: "cool" }, d: { e: 0 } } };
+const initialState: State = { a: { b: { c: "cool" }, d: { e: 0 } }, f: [{ g: true }, { g: false }] };
 
 const { LensProvider, lens } = create<State>();
 
 const App = (props: { state: ProxyLens<State> }) => {
-  const [c, setC] = props.state.a.b.c.use();
+  const [cState, setC] = props.state.a.b.c.use();
 
-  const onClick = () => setC(c + "!");
+  const onClick = () => setC((c) => c + "!");
 
   return (
     <div data-testid="element" onClick={onClick}>
-      {c}
+      {cState}
     </div>
   );
 };
 
+const Provider: React.FC = (props) => (
+  <LensProvider.Stateful initialValue={initialState}>{props.children}</LensProvider.Stateful>
+);
+
 test("renders", () => {
-  render(<LensProvider.Stateful initialValue={initialState}>{<App state={lens} />}</LensProvider.Stateful>);
+  render(<Provider>{<App state={lens} />}</Provider>);
 
   const el = screen.getByTestId("element");
 
@@ -43,7 +48,7 @@ test("renders", () => {
 });
 
 test("updates", () => {
-  render(<LensProvider.Stateful initialValue={initialState}>{<App state={lens} />}</LensProvider.Stateful>);
+  render(<Provider>{<App state={lens} />}</Provider>);
 
   const el = screen.getByTestId("element");
 
@@ -89,11 +94,11 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   });
 
   render(
-    <LensProvider.Stateful initialValue={initialState}>
+    <Provider>
       <App state={lens} />
       <E state={lens} />
       <B state={lens} />
-    </LensProvider.Stateful>
+    </Provider>
   );
 
   const el = screen.getByTestId("element");
@@ -174,4 +179,94 @@ test("renders sets new props into the lens", () => {
   expect(el.innerHTML).toEqual("goodbye!");
 });
 
-test.todo("only re-renders new members of a list");
+test("only re-renders a list when new members of a list should a shouldUpdate condition is applied", () => {
+  let gRenderCount = 0;
+  let fRenderCount = 0;
+
+  type GProps = {
+    state: ProxyLens<{ g: boolean }>;
+  };
+
+  const G = React.memo((props: GProps) => {
+    props.state.use();
+
+    gRenderCount++;
+
+    return null;
+  });
+
+  type FProps = {
+    shouldUpdate?(prev: { g: boolean }[], next: { g: boolean }[]): boolean;
+  };
+
+  const F = (props: FProps) => {
+    const [fState, setF] = lens.f.use(props.shouldUpdate);
+
+    const onClick = () => {
+      setF((f) => [...f, { g: true }]);
+    };
+
+    fRenderCount++;
+
+    return (
+      <div>
+        {fState.map((g) => {
+          const lens = g.toLens();
+          return <G key={lens.$key} state={lens} />;
+        })}
+        <button data-testid="push-g-button" onClick={onClick} />;
+      </div>
+    );
+  };
+
+  const { getByTestId, rerender } = render(
+    <Provider>
+      <F />
+    </Provider>
+  );
+
+  const pushGButton = getByTestId("push-g-button");
+
+  expect(fRenderCount).toEqual(1);
+  expect(gRenderCount).toEqual(2);
+
+  act(() => {
+    pushGButton.click();
+  });
+
+  expect(fRenderCount).toEqual(2);
+  expect(gRenderCount).toEqual(3);
+
+  act(() => {
+    pushGButton.click();
+  });
+
+  expect(fRenderCount).toEqual(3);
+  expect(gRenderCount).toEqual(4);
+
+  /**
+   * reset all render counts
+   */
+  fRenderCount = 0;
+  gRenderCount = 0;
+
+  rerender(
+    <Provider>
+      <F shouldUpdate={(prev, next) => prev.length !== next.length} />
+    </Provider>
+  );
+
+  expect(fRenderCount).toEqual(1);
+  expect(gRenderCount).toEqual(0);
+
+  act(() => {
+    pushGButton.click();
+  });
+
+  expect(fRenderCount).toEqual(2);
+  expect(gRenderCount).toEqual(1); // only incremented by 1
+
+  // instead here update all of the G's and see that F does not re-render
+});
+
+test.todo("making a copy of data will remove the `toLens` call");

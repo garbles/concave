@@ -7,9 +7,10 @@ type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
 type Proxyable = AnyArray | AnyObject;
 
-type SetNext<A> = (next: A) => void;
-type Use<A> = () => readonly [A, SetNext<A>];
-type UseProxy<A> = () => readonly [ProxyValue<A>, SetNext<A>];
+type ShouldUpdate<A> = (prev: A, next: A) => boolean;
+type SetNext<A> = (fn: (prev: A) => A) => void;
+type Use<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, SetNext<A>];
+type UseProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, SetNext<A>];
 type CreateUse<S> = <A>(lens: BasicLens<S, A>) => Use<A>;
 
 type LensFixtures<S, A> = {
@@ -75,10 +76,10 @@ const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
 const createUseState = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxy<A> => {
-  const useState = fixtures.createUse(fixtures.lens);
+  const use = fixtures.createUse(fixtures.lens);
 
-  return () => {
-    const [state, setState] = useState();
+  return (shouldUpdate) => {
+    const [state, setState] = use(shouldUpdate);
     const next = proxyValue(state, lens);
 
     return [next, setState];

@@ -9,9 +9,7 @@ export const testLens = <S>(initialState: S): [ProxyLens<S>, React.MutableRefObj
 
   const lens = proxyLens<S, S>({
     lens: basicLens(),
-    createUse<A>(lens: BasicLens<S, A>) {
-      return () => useSyncExternalStoreWithLens(store, lens);
-    },
+    createUse: (lens) => (shouldUpdate) => useSyncExternalStoreWithLens(store, lens, shouldUpdate),
   });
 
   const ref: React.MutableRefObject<S> = {

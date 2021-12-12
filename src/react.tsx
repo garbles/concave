@@ -15,14 +15,14 @@ export const create = <S,>() => {
 
   const createUse =
     <A,>(lens: BasicLens<S, A>) =>
-    () => {
+    (shouldUpdate?: (prev: A, next: A) => boolean) => {
       const store = React.useContext(ExternalStoreContext);
 
       if (store === nothing) {
         throw new Error("Cannot call `lens.use()` in a component outside of <LensProvider />");
       }
 
-      return useSyncExternalStoreWithLens(store, lens);
+      return useSyncExternalStoreWithLens(store, lens, shouldUpdate);
     };
 
   const lens = proxyLens<S, S>({

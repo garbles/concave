@@ -34,8 +34,8 @@ const createUse = <A>(lens: BasicLens<State, A>) => {
   return () =>
     [
       lens.get(globalState),
-      (next: A) => {
-        globalState = lens.set(globalState, next);
+      (fn: (a: A) => A) => {
+        globalState = lens.set(globalState, fn(lens.get(globalState)));
       },
     ] as const;
 };
@@ -61,7 +61,7 @@ describe("useState", () => {
   test("can update state", () => {
     const [bState, setB] = lens.a.b.use();
 
-    setB({ c: 500 });
+    setB(() => ({ c: 500 }));
 
     const [nextBState] = lens.a.b.use();
 
@@ -97,7 +97,8 @@ describe("returning the same proxy lens", () => {
     const [fState, setF] = lens.a.f.use();
     const f1 = fState[0];
 
-    setF([...fState, { g: true }]);
+    // problem here is we return the wrapped value instead of the next one and so they don't wrap
+    setF((f) => [...f, { g: true }]);
 
     const [nextFState] = lens.a.f.use();
     const nextF1 = nextFState[0];
@@ -114,7 +115,7 @@ describe("returning the same proxy lens", () => {
 
     const nextBState = { c: 5000 };
 
-    setBState(nextBState);
+    setBState(() => ({ c: 5000 }));
 
     const [aState] = lens.a.use();
 
