@@ -61,8 +61,8 @@ type Props = {
 };
 
 const Profile = (props: Props) => {
-  const [profile, setProfile] = props.state.use();
+  const [profile, updateProfile] = props.state.use();
 
-  return <input type="text" value={profile.name} onChange={(ev) => setProfile(ev.target.value)} />;
+  return <input type="text" value={profile.name} onChange={(ev) => updateProfile(() => ev.target.value)} />;
 };
 ```
