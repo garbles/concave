@@ -8,9 +8,10 @@ type JSON = AnyArray | AnyObject | AnyPrimitive;
 type Proxyable = AnyArray | AnyObject;
 
 type ShouldUpdate<A> = (prev: A, next: A) => boolean;
-type SetNext<A> = (fn: (prev: A) => A) => void;
-type Use<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, SetNext<A>];
-type UseProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, SetNext<A>];
+type Updater<A> = (a: A) => A;
+type Update<A> = (updater: Updater<A>) => void;
+type Use<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
+type UseProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
 type CreateUse<S> = <A>(lens: BasicLens<S, A>) => Use<A>;
 
 type LensFixtures<S, A> = {

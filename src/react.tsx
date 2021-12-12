@@ -48,7 +48,7 @@ export const create = <S,>() => {
 
     React.useEffect(() => {
       if (store.getSnapshot() !== props.value) {
-        store.apply(() => props.value);
+        store.update(() => props.value);
       }
     }, [props.value]);
 

@@ -4,7 +4,7 @@ type Unsubscribe = () => void;
 export type ExternalStore<S> = {
   subscribe(onStoreChange: Listener): Unsubscribe;
   getSnapshot(): S;
-  apply(setter: (state: S) => S): void;
+  update(updater: (state: S) => S): void;
 };
 
 export const externalStore = <S>(initialState: S): ExternalStore<S> => {
@@ -21,8 +21,8 @@ export const externalStore = <S>(initialState: S): ExternalStore<S> => {
       return state;
     },
 
-    apply(set) {
-      state = set(state);
+    update(updater) {
+      state = updater(state);
       listeners.forEach((fn) => fn());
     },
   };

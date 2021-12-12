@@ -1,16 +1,18 @@
 import { shallowCopy } from "./shallow-copy";
 
+type Updater<A> = (a: A) => A;
+
 export type BasicLens<S, A> = {
-  get(state: S): A;
-  set(state: S, value: A): S;
+  get(s: S): A;
+  set(s: S, a: A): S;
 };
 
 const identity: BasicLens<any, any> = Object.freeze({
-  get(state) {
-    return state;
+  get(s) {
+    return s;
   },
-  set(state, value) {
-    return value;
+  set(s, a) {
+    return a;
   },
 });
 
@@ -18,18 +20,18 @@ export const basicLens = <S>(): BasicLens<S, S> => identity;
 
 export const refine = <S extends {}, A, B>(
   lens: BasicLens<S, A>,
-  get: (value: A) => B,
-  set: (state: A, value: B) => A
+  get: (a: A) => B,
+  set: (a: A, b: B) => A
 ): BasicLens<S, B> => {
   return {
-    get(state) {
-      const a = lens.get(state);
+    get(s) {
+      const a = lens.get(s);
       return get(a);
     },
 
-    set(state, b) {
-      const a = lens.get(state);
-      return lens.set(state, set(a, b));
+    set(s, b) {
+      const a = lens.get(s);
+      return lens.set(s, set(a, b));
     },
   };
 };
@@ -40,12 +42,19 @@ export const prop = <S extends {}, A extends {}, K extends keyof A>(
 ): BasicLens<S, A[K]> => {
   return refine(
     lens,
-    (state) => state[key],
-    (prev, next) => {
-      const copy = shallowCopy(prev);
-      copy[key] = next;
+    (s) => s[key],
+    (a, ak) => {
+      const copy = shallowCopy(a);
+      copy[key] = ak;
 
       return copy;
     }
   );
 };
+
+export const update =
+  <S, A>(lens: BasicLens<S, A>, updater: Updater<A>) =>
+  (s: S): S => {
+    const a = lens.get(s);
+    return lens.set(s, updater(a));
+  };

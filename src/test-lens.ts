@@ -17,7 +17,7 @@ export const testLens = <S>(initialState: S): [ProxyLens<S>, React.MutableRefObj
       return store.getSnapshot();
     },
     set current(next) {
-      store.apply(() => next);
+      store.update(() => next);
     },
   };
 
