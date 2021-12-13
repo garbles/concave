@@ -1,11 +1,17 @@
 {
-  "name": "react-lenses",
+  "name": "concave",
   "private": true,
   "version": "0.0.1",
-  "description": "Lenses for React",
+  "description": "Basic lensing for React",
   "main": "build/index.js",
+  "types": "build/index.d.ts",
   "author": "Gabe Scholz",
   "license": "MIT",
+  "keywords": ["react", "lens", "optics", "state"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/garbles/concave.git"
+  },
   "scripts": {
     "test": "jest",
     "build": "rm -rf build && tsc"

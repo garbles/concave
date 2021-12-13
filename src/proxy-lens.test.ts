@@ -127,10 +127,11 @@ describe("returning the same proxy lens", () => {
     expect(bState.toLens()).toBe(aState.b.toLens());
   });
 
-  test("making a copy will throw an error", () => {
+  test("making a copy of an object will throw an error", () => {
     const [obj] = lens.use();
 
     expect(() => ({ ...obj })).toThrow();
+    expect(() => Object.assign({}, obj)).toThrow();
 
     expect(() => [...obj.a.f]).not.toThrow();
 
