@@ -10,7 +10,8 @@
     "react",
     "lens",
     "optics",
-    "state"
+    "state",
+    "state-management"
   ],
   "repository": {
     "type": "git",

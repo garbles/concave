@@ -127,7 +127,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
 
     getOwnPropertyDescriptor(target, key) {
       if (key === THROW_ON_COPY) {
-        throw new Error("");
+        throw new Error("Cannot copy a ProxyValue into a new value");
       }
 
       return Object.getOwnPropertyDescriptor(target, key);
