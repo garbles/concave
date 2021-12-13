@@ -14,7 +14,8 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "rm -rf build && tsc"
+    "build": "rm -rf build && tsc",
+    "prepublish": "yarn test && yarn build"
   },
   "dependencies": {},
   "devDependencies": {
