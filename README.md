@@ -9,7 +9,7 @@ You can construct a lens/React Provider by just providing the shape of your appl
 ```ts
 // LensProvider.ts
 
-import { create } from "react-lenses";
+import { create } from "concave";
 import type { State } from "./application-state";
 
 export const { lens, LensProvider } = create<State>();
@@ -38,7 +38,7 @@ The lens can be focused by regular member access.
 ```tsx
 // Root.tsx
 
-import { Lens } from "react-lenses";
+import { Lens } from "concave";
 import type { State } from "./application-state";
 import { Profile } from "./Profile";
 
@@ -55,6 +55,7 @@ And then the underlying data it can be accessed by collapsing the lens into a Re
 
 ```tsx
 // Profile.tsx
+import { Lens } from "concave";
 
 type Props = {
   state: Lens<{ name: string; email: string }>;
