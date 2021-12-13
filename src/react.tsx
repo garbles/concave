@@ -4,6 +4,7 @@ import React from "react";
 import { basicLens, BasicLens } from "./basic-lens";
 import { externalStore, ExternalStore } from "./external-store";
 import { proxyLens } from "./proxy-lens";
+import { ShouldUpdate } from "./should-update";
 import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
 
 type StatefulLensProviderProps<S> = React.PropsWithChildren<{
@@ -30,13 +31,13 @@ interface LensProviderComponent<S> extends React.FC<LensProviderProps<S>> {
 type Nothing = typeof nothing;
 const nothing = Symbol();
 
-export const create = <S,>() => {
+export const react = <S,>() => {
   const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(nothing);
   ExternalStoreContext.displayName = "Lens(ExternalStoreContext)";
 
   const createUse =
     <A,>(lens: BasicLens<S, A>) =>
-    (shouldUpdate?: (prev: A, next: A) => boolean) => {
+    (shouldUpdate?: ShouldUpdate<A>) => {
       const store = React.useContext(ExternalStoreContext);
 
       if (store === nothing) {

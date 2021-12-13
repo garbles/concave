@@ -1,5 +1,6 @@
 import { BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
+import { ShouldUpdate } from "./should-update";
 
 type AnyObject = { [key: string | symbol | number]: JSON };
 type AnyArray = JSON[];
@@ -7,7 +8,6 @@ type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
 type Proxyable = AnyArray | AnyObject;
 
-type ShouldUpdate<A> = (prev: A, next: A) => boolean;
 type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
 type Use<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
@@ -20,6 +20,7 @@ type LensFixtures<S, A> = {
 };
 
 type BaseProxyValue<A> = {
+  toJSON(): A;
   toLens(): ProxyLens<A>;
 };
 
@@ -70,6 +71,7 @@ export type ProxyLens<A> =
 
 const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
+const THROW_ON_COPY = Symbol();
 
 let keyCounter = 0;
 const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
@@ -96,10 +98,17 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
     return Reflect.get(obj, PROXY_VALUE);
   }
 
+  let toJSON: unknown;
+
   const proxy = new Proxy(obj, {
     get(target, key) {
       if (key === PROXY_VALUE) {
         return proxy;
+      }
+
+      if (key === "toJSON") {
+        toJSON ??= () => target;
+        return toJSON;
       }
 
       if (key === "toLens") {
@@ -111,6 +120,19 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
 
       return proxyValue(nextValue, nextLens);
     },
+
+    ownKeys(target) {
+      return [...Reflect.ownKeys(target), THROW_ON_COPY];
+    },
+
+    getOwnPropertyDescriptor(target, key) {
+      if (key === THROW_ON_COPY) {
+        throw new Error("");
+      }
+
+      return Object.getOwnPropertyDescriptor(target, key);
+    },
+
     set() {
       throw new Error("Cannot set property on ProxyValue");
     },
@@ -127,9 +149,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
    * 2. It is not accessible outside of this module.
    */
   Object.defineProperty(obj, PROXY_VALUE, {
-    get() {
-      return proxy;
-    },
+    value: proxy,
     enumerable: false,
   });
 

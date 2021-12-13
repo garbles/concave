@@ -5,7 +5,8 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import { ProxyLens } from "./proxy-lens";
-import { create } from "./react";
+import { react } from "./react";
+import { ShouldUpdate } from "./should-update";
 
 type State = {
   a: {
@@ -21,7 +22,7 @@ type State = {
 
 const initialState: State = { a: { b: { c: "cool" }, d: { e: 0 } }, f: [{ g: true }, { g: false }] };
 
-const { LensProvider, lens } = create<State>();
+const { LensProvider, lens } = react<State>();
 
 const App = (props: { state: ProxyLens<State> }) => {
   const [cState, setC] = props.state.a.b.c.use();
@@ -179,7 +180,7 @@ test("renders sets new props into the lens", () => {
   expect(el.innerHTML).toEqual("goodbye!");
 });
 
-test("only re-renders a list when new members of a list should a shouldUpdate condition is applied", () => {
+describe("should update", () => {
   let gRenderCount = 0;
   let fRenderCount = 0;
 
@@ -188,22 +189,24 @@ test("only re-renders a list when new members of a list should a shouldUpdate co
   };
 
   const G = React.memo((props: GProps) => {
-    props.state.use();
+    const [g, updateG] = props.state.use();
+
+    const onClick = () => updateG((prev) => ({ ...prev, g: !prev.g }));
 
     gRenderCount++;
 
-    return null;
+    return <button data-testid="toggle-g" onClick={onClick}></button>;
   });
 
   type FProps = {
-    shouldUpdate?(prev: { g: boolean }[], next: { g: boolean }[]): boolean;
+    shouldUpdate?: ShouldUpdate<State["f"]>;
   };
 
   const F = (props: FProps) => {
-    const [fState, setF] = lens.f.use(props.shouldUpdate);
+    const [fState, updateF] = lens.f.use(props.shouldUpdate);
 
     const onClick = () => {
-      setF((f) => [...f, { g: true }]);
+      updateF((f) => [...f, { g: true }]);
     };
 
     fRenderCount++;
@@ -219,56 +222,104 @@ test("only re-renders a list when new members of a list should a shouldUpdate co
     );
   };
 
-  const { getByTestId, rerender } = render(
-    <Provider>
-      <F />
-    </Provider>
+  beforeEach(() => {
+    gRenderCount = 0;
+    fRenderCount = 0;
+  });
+
+  test("re-renders a list when memebers added to a list", () => {
+    render(
+      <Provider>
+        <F />
+      </Provider>
+    );
+
+    const pushGButton = screen.getByTestId("push-g-button");
+
+    expect(fRenderCount).toEqual(1);
+    expect(gRenderCount).toEqual(2);
+
+    act(() => {
+      pushGButton.click();
+    });
+
+    expect(fRenderCount).toEqual(2);
+    expect(gRenderCount).toEqual(3);
+
+    act(() => {
+      pushGButton.click();
+    });
+
+    expect(fRenderCount).toEqual(3);
+    expect(gRenderCount).toEqual(4);
+  });
+
+  test("accepts length for lists", () => {
+    // noop. just a typecheck here
+    render(
+      <Provider>
+        <F shouldUpdate={["length"]} />
+      </Provider>
+    );
+  });
+
+  test("empty array never re-renders", () => {
+    render(
+      <Provider>
+        <F shouldUpdate={[]} />
+      </Provider>
+    );
+
+    const pushGButton = screen.getByTestId("push-g-button");
+
+    act(() => {
+      pushGButton.click();
+    });
+
+    act(() => {
+      pushGButton.click();
+    });
+
+    act(() => {
+      pushGButton.click();
+    });
+
+    expect(fRenderCount).toEqual(1);
+    expect(gRenderCount).toEqual(2); // Gs are never added because F does not re-render
+  });
+
+  test.each([(prev, next) => prev.length !== next.length, ["length"], { length: true }] as ShouldUpdate<State["f"]>[])(
+    "does not re-render unless the length has changed",
+    (shouldUpdate) => {
+      render(
+        <Provider>
+          <F shouldUpdate={shouldUpdate} />
+        </Provider>
+      );
+
+      expect(fRenderCount).toEqual(1);
+      expect(gRenderCount).toEqual(2);
+
+      act(() => {
+        const pushGButton = screen.getByTestId("push-g-button");
+        pushGButton.click();
+      });
+
+      expect(fRenderCount).toEqual(2);
+      expect(gRenderCount).toEqual(3);
+
+      act(() => {
+        const toggleGButtons = screen.queryAllByTestId("toggle-g");
+        toggleGButtons.forEach((button) => button.click());
+      });
+
+      expect(fRenderCount).toEqual(2); // does not change
+      expect(gRenderCount).toEqual(6); // re-renders all Gs
+    }
   );
-
-  const pushGButton = getByTestId("push-g-button");
-
-  expect(fRenderCount).toEqual(1);
-  expect(gRenderCount).toEqual(2);
-
-  act(() => {
-    pushGButton.click();
-  });
-
-  expect(fRenderCount).toEqual(2);
-  expect(gRenderCount).toEqual(3);
-
-  act(() => {
-    pushGButton.click();
-  });
-
-  expect(fRenderCount).toEqual(3);
-  expect(gRenderCount).toEqual(4);
-
-  /**
-   * reset all render counts
-   */
-  fRenderCount = 0;
-  gRenderCount = 0;
-
-  rerender(
-    <Provider>
-      <F shouldUpdate={(prev, next) => prev.length !== next.length} />
-    </Provider>
-  );
-
-  expect(fRenderCount).toEqual(1);
-  expect(gRenderCount).toEqual(0);
-
-  act(() => {
-    pushGButton.click();
-  });
-
-  expect(fRenderCount).toEqual(2);
-  expect(gRenderCount).toEqual(1); // only incremented by 1
-
-  // instead here update all of the G's and see that F does not re-render
 });
 
-test.todo("making a copy of data will remove the `toLens` call");
+test.todo("throws an error without context");
+test.todo("does not throw an array using tesLens");
 test.todo("multiple hooks only trigger one re-render");
 test.todo("updating twice in a single callback will yield the next value in the second callback");

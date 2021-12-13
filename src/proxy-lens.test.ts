@@ -49,13 +49,13 @@ beforeEach(() => {
   });
 });
 
-describe("useState", () => {
+describe("use", () => {
   test("creates a wrapper around a lens", () => {
     const [state] = lens.use();
-    expect(state).toEqual(globalState);
+    expect(state.toJSON()).toEqual(globalState);
 
     const [bState] = lens.a.b.use();
-    expect(bState).toEqual(globalState.a.b);
+    expect(bState.toJSON()).toEqual(globalState.a.b);
   });
 
   test("can update state", () => {
@@ -65,7 +65,7 @@ describe("useState", () => {
 
     const [nextBState] = lens.a.b.use();
 
-    expect(bState).not.toEqual(nextBState);
+    expect(bState.toJSON()).not.toEqual(nextBState.toJSON());
     expect(nextBState).toMatchObject({ c: 500 });
   });
 
@@ -119,11 +119,31 @@ describe("returning the same proxy lens", () => {
 
     const [aState] = lens.a.use();
 
-    expect(aState.b).toEqual(nextBState);
+    expect(aState.b.toJSON()).toEqual(nextBState);
     expect(aState.d).toBe(dState);
     expect(aState.d.toLens()).toBe(lens.a.d);
     expect(dState.toLens()).toBe(lens.a.d);
     expect(bState.toLens()).toBe(lens.a.b);
     expect(bState.toLens()).toBe(aState.b.toLens());
+  });
+
+  test("making a copy will throw an error", () => {
+    const [obj] = lens.use();
+
+    expect(() => ({ ...obj })).toThrow();
+
+    expect(() => [...obj.a.f]).not.toThrow();
+
+    expect(() => {
+      // iterate
+      for (const key in obj) {
+      }
+    }).not.toThrow();
+
+    expect(() => {
+      // iterate
+      for (const value of obj.a.f) {
+      }
+    }).not.toThrow();
   });
 });

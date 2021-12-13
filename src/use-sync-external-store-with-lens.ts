@@ -1,10 +1,10 @@
 import React from "react";
 import { BasicLens, update } from "./basic-lens";
 import { ExternalStore } from "./external-store";
+import { normalizeShouldUpdate, ShouldUpdate } from "./should-update";
 
 const nothing = Symbol();
 type Nothing = typeof nothing;
-type ShouldUpdate<A> = (prev: A, next: A) => boolean;
 type Updater<A> = (a: A) => A;
 
 export const useSyncExternalStoreWithLens = <S, A>(
@@ -29,10 +29,12 @@ export const useSyncExternalStoreWithLens = <S, A>(
       return next;
     }
 
+    const normalShouldUpdate = normalizeShouldUpdate(shouldUpdate);
+
     /**
      * If we should update then return the `next`.
      */
-    if (shouldUpdate(prev, next)) {
+    if (normalShouldUpdate(prev, next)) {
       return next;
     }
 
