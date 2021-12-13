@@ -1,6 +1,5 @@
 {
   "name": "concave",
-  "private": true,
   "version": "0.0.1",
   "description": "Basic lensing for React",
   "main": "build/index.js",
