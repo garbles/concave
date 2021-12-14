@@ -3,8 +3,9 @@ import { BasicLens, update } from "./basic-lens";
 import { ExternalStore } from "./external-store";
 import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
 
-const nothing = Symbol();
-type Nothing = typeof nothing;
+const NOTHING = Symbol();
+
+type Nothing = typeof NOTHING;
 type Updater<A> = (a: A) => A;
 
 export const useSyncExternalStoreWithLens = <S, A>(
@@ -15,7 +16,13 @@ export const useSyncExternalStoreWithLens = <S, A>(
   /**
    * Track the previously resolved state, starting with `Nothing`.
    */
-  const prevRef = React.useRef<A | Nothing>(nothing);
+  const prevRef = React.useRef<A | Nothing>(NOTHING);
+
+  /**
+   * Transform `shouldUpdate` into a function here instead of inside `getSnapshot`
+   * because it will be called at least once at render time, but possibly more than once.
+   */
+  const shouldUpdateFn = React.useMemo(() => shouldUpdateToFunction(shouldUpdate), [shouldUpdate]);
 
   const getSnapshot = () => {
     const prev = prevRef.current;
@@ -25,11 +32,9 @@ export const useSyncExternalStoreWithLens = <S, A>(
      * If the `prev` is `Nothing` then this is the first render,
      * so just take `next.
      */
-    if (prev === nothing) {
+    if (prev === NOTHING) {
       return next;
     }
-
-    const shouldUpdateFn = shouldUpdateToFunction(shouldUpdate);
 
     /**
      * If we should update then return the `next`.

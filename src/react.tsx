@@ -14,11 +14,11 @@ type LensProviderProps<S> = {
 
 type LensProviderComponent<S> = React.FC<LensProviderProps<S>>;
 
-type Nothing = typeof nothing;
-const nothing = Symbol();
+type Nothing = typeof NOTHING;
+const NOTHING = Symbol();
 
 export const stateless = <S,>() => {
-  const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(nothing);
+  const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(NOTHING);
   ExternalStoreContext.displayName = "Lens(ExternalStoreContext)";
 
   const createUse =
@@ -26,7 +26,7 @@ export const stateless = <S,>() => {
     (shouldUpdate?: ShouldUpdate<A>) => {
       const store = React.useContext(ExternalStoreContext);
 
-      if (store === nothing) {
+      if (store === NOTHING) {
         throw new Error("Cannot call `lens.use()` in a component outside of <LensProvider />");
       }
 
