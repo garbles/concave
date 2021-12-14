@@ -7,31 +7,17 @@ import { proxyLens } from "./proxy-lens";
 import { ShouldUpdate } from "./should-update";
 import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
 
-type StatefulLensProviderProps<S> = React.PropsWithChildren<{
-  initialValue: S;
-}>;
-
-type LensStateRef<S> = {
-  state: S;
-};
-
-type StatefulLensProviderComponent<S> = React.ForwardRefExoticComponent<
-  React.PropsWithoutRef<StatefulLensProviderProps<S>> & React.RefAttributes<LensStateRef<S>>
->;
-
 type LensProviderProps<S> = {
   value: S;
   onChange(next: S): void;
 };
 
-interface LensProviderComponent<S> extends React.FC<LensProviderProps<S>> {
-  Stateful: StatefulLensProviderComponent<S>;
-}
+type LensProviderComponent<S> = React.FC<LensProviderProps<S>>;
 
 type Nothing = typeof nothing;
 const nothing = Symbol();
 
-export const react = <S,>() => {
+export const stateless = <S,>() => {
   const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(nothing);
   ExternalStoreContext.displayName = "Lens(ExternalStoreContext)";
 
@@ -73,22 +59,25 @@ export const react = <S,>() => {
   };
   LensProvider.displayName = "Lens(Provider)";
 
-  const StatefulLensProvider: StatefulLensProviderComponent<S> = React.forwardRef((props, ref) => {
-    const [state, setState] = React.useState(props.initialValue);
+  return [lens, LensProvider] as const;
+};
 
-    React.useImperativeHandle(ref, () => ({ state }), [state]);
+export const stateful = <S,>(initialState: S) => {
+  const store = externalStore(initialState);
 
-    return (
-      <LensProvider value={state} onChange={setState}>
-        {props.children}
-      </LensProvider>
-    );
+  const lens = proxyLens<S, S>({
+    lens: basicLens(),
+    createUse: (lens) => (shouldUpdate) => useSyncExternalStoreWithLens(store, lens, shouldUpdate),
   });
-  StatefulLensProvider.displayName = "Lens(StatefulProvider)";
-  LensProvider.Stateful = StatefulLensProvider;
 
-  return {
-    lens,
-    LensProvider,
+  const ref: React.MutableRefObject<S> = {
+    get current() {
+      return store.getSnapshot();
+    },
+    set current(next) {
+      store.update(() => next);
+    },
   };
+
+  return [lens, ref] as const;
 };

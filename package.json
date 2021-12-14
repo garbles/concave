@@ -2,16 +2,28 @@
   "name": "concave",
   "version": "0.0.2",
   "description": "Basic lensing for React",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
+  "main": "dist/concave.umd.js",
+  "module": "dist/concave.es.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/concave.es.js",
+      "require": "./dist/concave.umd.js"
+    }
+  },
   "author": "Gabe Scholz",
   "license": "MIT",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
   "keywords": [
     "react",
     "lens",
     "optics",
     "state",
-    "state-management"
+    "state-management",
+    "store"
   ],
   "repository": {
     "type": "git",
@@ -19,11 +31,13 @@
   },
   "scripts": {
     "test": "jest",
-    "build": "rm -rf build && tsc",
-    "prepublish": "yarn test && yarn build"
+    "typecheck": "tsc --noEmit",
+    "build": "rm -rf dist && vite build",
+    "prepublish": "yarn test && yarn typecheck && yarn build"
   },
   "dependencies": {},
   "devDependencies": {
+    "@rollup/plugin-typescript": "^8.3.0",
     "@testing-library/react": "^13.0.0-alpha.5",
     "@types/jest": "^27.0.3",
     "@types/react": "^17.0.37",
@@ -32,10 +46,12 @@
     "react": "^18.0.0-rc.0",
     "react-dom": "^18.0.0-rc.0",
     "ts-jest": "^27.0.7",
-    "typescript": "^4.5.2"
+    "tslib": "^2.3.1",
+    "typescript": "^4.5.2",
+    "vite": "^2.7.2"
   },
   "peerDependencies": {
-    "react": "^18",
-    "react-dom": "^18"
+    "react": "^18.0.0-rc.0",
+    "react-dom": "^18.0.0-rc.0"
   }
 }

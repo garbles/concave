@@ -5,7 +5,7 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import { ProxyLens } from "./proxy-lens";
-import { react } from "./react";
+import { stateless } from "./react";
 import { ShouldUpdate } from "./should-update";
 
 type State = {
@@ -22,7 +22,7 @@ type State = {
 
 const initialState: State = { a: { b: { c: "cool" }, d: { e: 0 } }, f: [{ g: true }, { g: false }] };
 
-const { LensProvider, lens } = react<State>();
+const [lens, LensProvider] = stateless<State>();
 
 const App = (props: { state: ProxyLens<State> }) => {
   const [cState, setC] = props.state.a.b.c.use();
@@ -36,9 +36,15 @@ const App = (props: { state: ProxyLens<State> }) => {
   );
 };
 
-const Provider: React.FC = (props) => (
-  <LensProvider.Stateful initialValue={initialState}>{props.children}</LensProvider.Stateful>
-);
+const Provider: React.FC = (props) => {
+  const [state, setState] = React.useState(initialState);
+
+  return (
+    <LensProvider value={state} onChange={setState}>
+      {props.children}
+    </LensProvider>
+  );
+};
 
 test("renders", () => {
   render(<Provider>{<App state={lens} />}</Provider>);

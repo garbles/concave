@@ -1,18 +1,18 @@
 {
   "compilerOptions": {
-    "incremental": true,
-    "target": "es2016",
-    "lib": ["dom", "es2016"],
+    "target": "esnext",
+    "lib": ["dom", "esnext"],
     "declaration": true,
     "sourceMap": true,
+    "isolatedModules": true,
     "jsx": "react",
-    "module": "commonjs",
-    "outDir": "build",
+    "moduleResolution": "node",
+    "outDir": "dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "src/*.test.ts", "src/*.test.tsx"]
+  "exclude": ["node_modules", "src/*.test.ts", "src/*.test.tsx", "dist"]
 }

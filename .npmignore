@@ -5,4 +5,3 @@ src
 jest.config.js
 tsconfig.json
 yarn.lock
-tsconfig.tsbuildinfo

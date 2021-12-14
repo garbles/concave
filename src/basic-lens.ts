@@ -18,7 +18,7 @@ const identity: BasicLens<any, any> = Object.freeze({
 
 export const basicLens = <S>(): BasicLens<S, S> => identity;
 
-export const refine = <S extends {}, A, B>(
+const refine = <S extends {}, A, B>(
   lens: BasicLens<S, A>,
   get: (a: A) => B,
   set: (a: A, b: B) => A

@@ -200,6 +200,12 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
 
         return cache[key as keyof A];
       },
+
+      /**
+       * TODO: throw when trying to access keys as a way to prevent
+       * copying on a ProxyLens
+       */
+
       set() {
         throw new Error("Cannot set property on ProxyLens");
       },

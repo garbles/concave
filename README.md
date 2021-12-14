@@ -9,13 +9,11 @@ You can construct a lens/React Provider by just providing the shape of your appl
 ```ts
 // LensProvider.ts
 
-import { create } from "concave";
+import Concave from "concave";
 import type { State } from "./application-state";
 
-export const { lens, LensProvider } = create<State>();
+export const [lens, LensProvider] = Concave.stateless<State>();
 ```
-
-The lens itself is provided via a `children` function to `LensProvider`.
 
 ```tsx
 // App.tsx
@@ -62,8 +60,14 @@ type Props = {
 };
 
 const Profile = (props: Props) => {
-  const [profile, updateProfile] = props.state.use();
+  const [name, updateProfileName] = props.state.name.use();
+  const [email, updateProfileEmail] = props.state.email.use();
 
-  return <input type="text" value={profile.name} onChange={(ev) => updateProfile(() => ev.target.value)} />;
+  return (
+    <>
+      <input type="text" value={name} onChange={(ev) => updateProfileName(() => ev.target.value)} />
+      <input type="email" value={email} onChange={(ev) => updateProfileEmail(() => ev.target.value)} />
+    </>
+  );
 };
 ```
