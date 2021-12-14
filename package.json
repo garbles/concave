@@ -1,6 +1,6 @@
 {
   "name": "concave",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Basic lensing for React",
   "main": "dist/concave.umd.js",
   "module": "dist/concave.es.js",
