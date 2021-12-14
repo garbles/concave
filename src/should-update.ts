@@ -4,7 +4,7 @@ type ShouldUpdateObject<A> = { [K in keyof A]: boolean };
 
 export type ShouldUpdate<A> = ShouldUpdateFn<A> | ShouldUpdateArray<A> | ShouldUpdateObject<A>;
 
-export const normalizeShouldUpdate = <A>(shouldUpdate: ShouldUpdate<A>): ShouldUpdateFn<A> => {
+export const shouldUpdateToFunction = <A>(shouldUpdate: ShouldUpdate<A>): ShouldUpdateFn<A> => {
   if (typeof shouldUpdate === "function") {
     return shouldUpdate;
   }

@@ -1,7 +1,7 @@
 import React from "react";
 import { BasicLens, update } from "./basic-lens";
 import { ExternalStore } from "./external-store";
-import { normalizeShouldUpdate, ShouldUpdate } from "./should-update";
+import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
 
 const nothing = Symbol();
 type Nothing = typeof nothing;
@@ -29,12 +29,12 @@ export const useSyncExternalStoreWithLens = <S, A>(
       return next;
     }
 
-    const normalShouldUpdate = normalizeShouldUpdate(shouldUpdate);
+    const shouldUpdateFn = shouldUpdateToFunction(shouldUpdate);
 
     /**
      * If we should update then return the `next`.
      */
-    if (normalShouldUpdate(prev, next)) {
+    if (shouldUpdateFn(prev, next)) {
       return next;
     }
 
