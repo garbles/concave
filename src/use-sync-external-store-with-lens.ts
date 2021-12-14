@@ -10,7 +10,7 @@ type Updater<A> = (a: A) => A;
 export const useSyncExternalStoreWithLens = <S, A>(
   store: ExternalStore<S>,
   lens: BasicLens<S, A>,
-  shouldUpdate: ShouldUpdate<A> = () => true
+  shouldUpdate: ShouldUpdate<A> = true
 ) => {
   /**
    * Track the previously resolved state, starting with `Nothing`.

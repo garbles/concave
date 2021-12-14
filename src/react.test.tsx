@@ -269,10 +269,10 @@ describe("should update", () => {
     );
   });
 
-  test("empty array never re-renders", () => {
+  test("function returning false never re-renders", () => {
     render(
       <Provider>
-        <F shouldUpdate={[]} />
+        <F shouldUpdate={() => false} />
       </Provider>
     );
 
@@ -294,7 +294,7 @@ describe("should update", () => {
     expect(gRenderCount).toEqual(2); // Gs are never added because F does not re-render
   });
 
-  test.each([(prev, next) => prev.length !== next.length, ["length"], { length: true }] as ShouldUpdate<State["f"]>[])(
+  test.each([(prev, next) => prev.length !== next.length, [], {}] as ShouldUpdate<State["f"]>[])(
     "does not re-render unless the length has changed",
     (shouldUpdate) => {
       render(
