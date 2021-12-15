@@ -5,7 +5,7 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import { ProxyLens } from "./proxy-lens";
-import { stateless } from "./react";
+import { stateful, stateless } from "./react";
 import { ShouldUpdate } from "./should-update";
 
 type State = {
@@ -118,22 +118,17 @@ test("does not re-render adjacent that do not listen to same state elements", ()
 
   act(() => {
     el.click();
-  });
-
-  act(() => {
     el.click();
-  });
-
-  act(() => {
     el.click();
-  });
-
-  act(() => {
     el.click();
   });
 
   expect(eRenderCount).toEqual(1);
-  expect(bRenderCount).toEqual(5);
+
+  /**
+   * Multiple '!' added to the string, but only re-renders once
+   */
+  expect(bRenderCount).toEqual(2);
   expect(JSON.parse(b.dataset.b ?? "")).toEqual({ c: "cool!!!!" });
 });
 
@@ -325,7 +320,47 @@ describe("should update", () => {
   );
 });
 
-test.todo("throws an error without context");
-test.todo("does not throw an array using tesLens");
-test.todo("multiple hooks only trigger one re-render");
-test.todo("updating twice in a single callback will yield the next value in the second callback");
+test("throws an error without context", () => {
+  jest.spyOn(console, "error").mockImplementation(() => {});
+
+  expect(() => render(<App state={lens} />)).toThrowError(
+    "Cannot call `lens.use()` in a component outside of <LensProvider />"
+  );
+});
+
+test("does not throw error with stateful lens", () => {
+  const [otherLens] = stateful(initialState);
+
+  expect(() => render(<App state={otherLens} />)).not.toThrow();
+});
+
+test.todo("does not throw an array using toLens");
+
+test("multiple hooks only trigger one re-render", () => {
+  let renderCount = 0;
+
+  const Other = () => {
+    lens.use();
+    const [c, setC] = lens.a.b.c.use();
+
+    renderCount++;
+
+    return <button data-testid="c-button" onClick={() => setC((c) => c + "!")} />;
+  };
+
+  render(
+    <Provider>
+      <Other />
+    </Provider>
+  );
+
+  expect(renderCount).toEqual(1);
+
+  const button = screen.getByTestId("c-button");
+
+  act(() => {
+    button.click();
+  });
+
+  expect(renderCount).toEqual(2);
+});

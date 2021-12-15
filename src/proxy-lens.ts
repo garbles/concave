@@ -121,6 +121,11 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
       return proxyValue(nextValue, nextLens);
     },
 
+    /**
+     * Prevent ProxyValue keys from be iterated to for the purpose of copying
+     * so that we can trust TypeScript. If we didn't do this, the following
+     * would pass typechecking, but fail at runtime: `({ ...value }).toLens()`
+     */
     ownKeys(target) {
       return [...Reflect.ownKeys(target), THROW_ON_COPY];
     },
@@ -202,9 +207,21 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
       },
 
       /**
-       * TODO: throw when trying to access keys as a way to prevent
-       * copying on a ProxyLens
+       * Prevent ProxyLens keys from be iterated to for the purpose of copying
+       * so that we can trust TypeScript. If we didn't do this, the following
+       * would pass typechecking, but fail at runtime: `({ ...lens }).use()`
        */
+      ownKeys() {
+        return [THROW_ON_COPY];
+      },
+
+      getOwnPropertyDescriptor(target, key) {
+        if (key === THROW_ON_COPY) {
+          throw new Error("Cannot copy a ProxyLens into a new value");
+        }
+
+        return undefined;
+      },
 
       set() {
         throw new Error("Cannot set property on ProxyLens");

@@ -148,3 +148,7 @@ describe("returning the same proxy lens", () => {
     }).not.toThrow();
   });
 });
+
+test("prevents making a copy of the lens", () => {
+  expect(() => ({ ...lens })).toThrow();
+});
