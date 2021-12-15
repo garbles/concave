@@ -1,10 +1,11 @@
 type Listener = () => void;
 type Unsubscribe = () => void;
+type Updater<A> = (a: A) => A;
 
 export type ExternalStore<S> = {
   subscribe(onStoreChange: Listener): Unsubscribe;
   getSnapshot(): S;
-  update(updater: (state: S) => S): void;
+  update(updater: Updater<S>): void;
 };
 
 export const externalStore = <S>(initialState: S): ExternalStore<S> => {
