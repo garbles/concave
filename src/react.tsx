@@ -43,7 +43,7 @@ export const stateless = <S,>() => {
     if (!storeRef.current) {
       storeRef.current = externalStore(props.value);
     }
-    let store = storeRef.current;
+    const store = storeRef.current;
 
     React.useEffect(() => {
       if (store.getSnapshot() !== props.value) {

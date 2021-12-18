@@ -1,18 +1,53 @@
-# Lenses in React
+# 🧐 Concave
 
-Uses TypeScript and [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) to dynamically construct a lens-like interface for your application state.
+A Lens-like interface for state management in React.
+
+## Overview
+
+## Introduction to Lenses for React developers
+
+## Installation
+
+## API
+
+### `stateful<S>(initialState: S): [Lens<S>, MutableRefObject<S>]`
+
+### `stateless<S>(): [Lens<S>, LensProvider<S>]`
+
+### `LensProvider<S>`
+
+### `Lens<A>`
+
+A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around `A`
+
+#### `Lens<A>.use(shouldUpdate? ShouldUpdate<A>): [ProxyValue<A>, UpdateFn<A>]`
+
+#### `Lens<A>.$key`
+
+## Examples
+
+## Testing
+
+## Performance tips
+
+1. Use shouldUpdate.
+
+2. If do use a shouldUpdate argument for the lens, you can either memoize it with `React.useMemo` or `React.useCallback` or store it outside
+   of the component.
 
 ## Example
+
+Uses TypeScript and [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) to dynamically construct a lens-like interface for your application state.
 
 You can construct a lens/React Provider by just providing the shape of your application state
 
 ```ts
 // LensProvider.ts
 
-import Concave from "concave";
+import { stateless } from "concave";
 import type { State } from "./application-state";
 
-export const [lens, LensProvider] = Concave.stateless<State>();
+export const [lens, LensProvider] = stateless<State>();
 ```
 
 ```tsx

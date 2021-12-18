@@ -8,7 +8,7 @@ export type ExternalStore<S> = {
   update(updater: Updater<S>): void;
 };
 
-export const externalStore = <S>(initialState: S): ExternalStore<S> => {
+export const externalStore = <S extends {}>(initialState: S): ExternalStore<S> => {
   const listeners = new Set<Listener>();
   let state = initialState;
 
@@ -23,7 +23,16 @@ export const externalStore = <S>(initialState: S): ExternalStore<S> => {
     },
 
     update(updater) {
-      state = updater(state);
+      const next = updater(state);
+
+      /**
+       * If the next value _is_ the previous one then do nothing.
+       */
+      if (Object.is(next, state)) {
+        return;
+      }
+
+      state = next;
       listeners.forEach((fn) => fn());
     },
   };

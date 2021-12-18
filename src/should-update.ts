@@ -1,8 +1,7 @@
 type ShouldUpdateBoolean = boolean;
 type ShouldUpdateArray<A> = (keyof A)[];
 type ShouldUpdateObject<A> = { [K in keyof A]?: A[K] extends any[] ? ShouldUpdate<A[K][number]> : ShouldUpdate<A[K]> };
-type ShouldUpdateFunction<A> = (prev: A, next: A) => boolean;
-
+export type ShouldUpdateFunction<A> = (prev: A, next: A) => boolean;
 export type ShouldUpdate<A> =
   | ShouldUpdateBoolean
   | ShouldUpdateFunction<A>

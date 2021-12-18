@@ -1,7 +1,7 @@
 {
   "name": "concave",
   "version": "0.0.4",
-  "description": "Basic lensing for React",
+  "description": "A Lens-like interface for state management in React",
   "main": "dist/concave.umd.js",
   "module": "dist/concave.es.js",
   "types": "dist/index.d.ts",

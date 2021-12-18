@@ -4,6 +4,7 @@
 
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
+import ReactDOMServer from "react-dom/server";
 import { ProxyLens } from "./proxy-lens";
 import { stateful, stateless } from "./react";
 import { ShouldUpdate } from "./should-update";
@@ -334,12 +335,10 @@ test("does not throw error with stateful lens", () => {
   expect(() => render(<App state={otherLens} />)).not.toThrow();
 });
 
-test.todo("does not throw an array using toLens");
-
 test("multiple hooks only trigger one re-render", () => {
   let renderCount = 0;
 
-  const Other = () => {
+  const Test = () => {
     lens.use();
     const [c, setC] = lens.a.b.c.use();
 
@@ -350,7 +349,7 @@ test("multiple hooks only trigger one re-render", () => {
 
   render(
     <Provider>
-      <Other />
+      <Test />
     </Provider>
   );
 
@@ -363,4 +362,49 @@ test("multiple hooks only trigger one re-render", () => {
   });
 
   expect(renderCount).toEqual(2);
+});
+
+test("renders to string", () => {
+  const Test = () => {
+    const [state] = lens.use();
+
+    return <pre>{state.a.b.c}</pre>;
+  };
+
+  const result = ReactDOMServer.renderToString(
+    <Provider>
+      <Test />
+    </Provider>
+  );
+
+  expect(result).toEqual(`<pre>cool</pre>`);
+});
+
+test("ignores passing the same value", () => {
+  let renderCount = 0;
+
+  const Test = () => {
+    lens.use();
+    const [a, setA] = lens.a.use();
+
+    renderCount++;
+
+    return <button data-testid="a-button" onClick={() => setA((next) => next)} />;
+  };
+
+  render(
+    <Provider>
+      <Test />
+    </Provider>
+  );
+
+  expect(renderCount).toEqual(1);
+
+  const button = screen.getByTestId("a-button");
+
+  act(() => {
+    button.click();
+  });
+
+  expect(renderCount).toEqual(1);
 });
