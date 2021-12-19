@@ -322,11 +322,13 @@ describe("should update", () => {
 });
 
 test("throws an error without context", () => {
-  jest.spyOn(console, "error").mockImplementation(() => {});
+  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
 
   expect(() => render(<App state={lens} />)).toThrowError(
     "Cannot call `lens.use()` in a component outside of <LensProvider />"
   );
+
+  spy.mockRestore();
 });
 
 test("does not throw error with stateful lens", () => {

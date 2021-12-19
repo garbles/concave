@@ -127,11 +127,11 @@ describe("returning the same proxy lens", () => {
     expect(bState.toLens()).toBe(aState.b.toLens());
   });
 
-  test("making a copy of an object will throw an error", () => {
+  test("making a copy of an object will not throw an error", () => {
     const [obj] = lens.use();
 
-    expect(() => ({ ...obj })).toThrow();
-    expect(() => Object.assign({}, obj)).toThrow();
+    expect(() => ({ ...obj })).not.toThrow();
+    expect(() => Object.assign({}, obj)).not.toThrow();
 
     expect(() => [...obj.a.f]).not.toThrow();
 
@@ -149,6 +149,30 @@ describe("returning the same proxy lens", () => {
   });
 });
 
-test("prevents making a copy of the lens", () => {
-  expect(() => ({ ...lens })).toThrow();
+test("making a copy of a ProxyValue preserves the same attributes", () => {
+  const [obj] = lens.use();
+  const copy = { ...obj };
+
+  expect(copy.toLens()).toBe(lens);
+  expect(copy).toEqual(obj);
+});
+
+test("making a copy of a ProxyLens does not work as expected", () => {
+  const spy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+  const freshLens = proxyLens<State, State>({ lens: basicLens(), createUse });
+
+  const copy = { ...freshLens };
+
+  expect(copy.a).toBeUndefined();
+
+  // access key for the first time
+  freshLens.a;
+
+  const anotherCopy = { ...freshLens };
+
+  expect(copy.a).toBeUndefined();
+  expect(anotherCopy.a).toBe(freshLens.a);
+
+  spy.mockRestore();
 });

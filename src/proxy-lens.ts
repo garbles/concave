@@ -71,7 +71,8 @@ export type ProxyLens<A> =
 
 const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
-const THROW_ON_COPY = Symbol();
+
+let showCopyLensWarning = false;
 
 let keyCounter = 0;
 const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
@@ -121,21 +122,23 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
       return proxyValue(nextValue, nextLens);
     },
 
-    /**
-     * Prevent ProxyValue keys from be iterated to for the purpose of copying
-     * so that we can trust TypeScript. If we didn't do this, the following
-     * would pass typechecking, but fail at runtime: `({ ...value }).toLens()`
-     */
     ownKeys(target) {
-      return [...Reflect.ownKeys(target), THROW_ON_COPY];
+      return [...Reflect.ownKeys(target), "toLens", "toJSON"];
     },
 
     getOwnPropertyDescriptor(target, key) {
-      if (key === THROW_ON_COPY) {
-        throw new Error("Cannot copy a ProxyValue into a new value");
+      if (key === PROXY_VALUE) {
+        return {
+          enumerable: false,
+          value: proxy,
+        };
       }
 
-      return Object.getOwnPropertyDescriptor(target, key);
+      return {
+        configurable: true,
+        enumerable: true,
+        value: (proxy as any)[key],
+      };
     },
 
     set() {
@@ -206,18 +209,57 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         return cache[key as keyof A];
       },
 
-      /**
-       * Prevent ProxyLens keys from be iterated to for the purpose of copying
-       * so that we can trust TypeScript. If we didn't do this, the following
-       * would pass typechecking, but fail at runtime: `({ ...lens }).use()`
-       */
-      ownKeys() {
-        return [THROW_ON_COPY];
+      ownKeys(target) {
+        return [...Object.keys(cache), "$key", "use", TO_LENS];
       },
 
       getOwnPropertyDescriptor(target, key) {
-        if (key === THROW_ON_COPY) {
-          throw new Error("Cannot copy a ProxyLens into a new value");
+        /**
+         * This is available in order to be able to introspect the lens;
+         * however, it will only expose keys that have been previously accessed.
+         */
+
+        if (key === "$key") {
+          return {
+            configurable: true,
+            enumerable: true,
+            value: proxy.$key,
+          };
+        }
+
+        if (key === "use") {
+          return {
+            configurable: true,
+            enumerable: true,
+            value: proxy.use,
+          };
+        }
+
+        if (key === TO_LENS) {
+          return {
+            configurable: true,
+            enumerable: true,
+            value: proxy[TO_LENS],
+          };
+        }
+
+        if (key in cache) {
+          if (process.env.NODE_ENV !== "production" && !showCopyLensWarning) {
+            showCopyLensWarning = true;
+
+            console.warn(
+              `"%c${String(key)}" as a key on ProxyLens is only available because it has been previously accessed. ` +
+                "If you are iterating through keys of this object via `{ ...obj }` or `Object.assign({}, obj)`, please consider " +
+                "an alternative approach.",
+              "color: red; font-weight: bold;"
+            );
+          }
+
+          return {
+            configurable: true,
+            enumerable: true,
+            value: cache[key as keyof LensCache],
+          };
         }
 
         return undefined;
