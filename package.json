@@ -1,6 +1,6 @@
 {
   "name": "concave",
-  "version": "0.0.9-alpha3",
+  "version": "0.0.9-alpha4",
   "description": "A Lens-like interface for state management in React",
   "main": "dist/concave.umd.js",
   "module": "dist/concave.es.js",
