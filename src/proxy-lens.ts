@@ -134,11 +134,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
         };
       }
 
-      return {
-        configurable: true,
-        enumerable: true,
-        value: (proxy as any)[key],
-      };
+      return { configurable: true, enumerable: true, value: (proxy as any)[key] };
     },
 
     set() {
@@ -176,6 +172,13 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
     {},
     {
       get(_target, key) {
+        /**
+         * Block React introspection as it will otherwise produce an infinite chain of ProxyLens values.
+         */
+        // if (key === "$$typeof") {
+        //   return undefined;
+        // }
+
         if (key === "$key") {
           $key ??= proxyLensKey();
           return $key;
@@ -214,11 +217,6 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
       },
 
       getOwnPropertyDescriptor(target, key) {
-        /**
-         * This is available in order to be able to introspect the lens;
-         * however, it will only expose keys that have been previously accessed.
-         */
-
         if (key === "$key") {
           return {
             configurable: true,
@@ -244,7 +242,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         if (key in cache) {
-          if (process.env.NODE_ENV !== "production" && !showCopyLensWarning) {
+          if (!showCopyLensWarning) {
             showCopyLensWarning = true;
 
             console.warn(
@@ -261,8 +259,6 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
             value: cache[key as keyof LensCache],
           };
         }
-
-        return undefined;
       },
 
       set() {
