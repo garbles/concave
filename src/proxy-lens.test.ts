@@ -1,5 +1,6 @@
 import { basicLens, BasicLens } from "./basic-lens";
 import { proxyLens, ProxyLens } from "./proxy-lens";
+import { ReactDevtools } from "./react-devtools";
 
 type State = {
   a: {
@@ -127,7 +128,7 @@ describe("returning the same proxy lens", () => {
     expect(bState.toLens()).toBe(aState.b.toLens());
   });
 
-  test("making a copy of an object will not throw an error", () => {
+  test("checking for errors when making copies", () => {
     const [obj] = lens.use();
 
     expect(() => ({ ...obj })).not.toThrow();
@@ -135,17 +136,25 @@ describe("returning the same proxy lens", () => {
 
     expect(() => [...obj.a.f]).not.toThrow();
 
-    expect(() => {
-      // iterate
-      for (const key in obj) {
-      }
-    }).not.toThrow();
+    // iterate
+    for (const key in obj) {
+      expect(typeof key).not.toEqual("symbol");
+    }
 
-    expect(() => {
-      // iterate
-      for (const value of obj.a.f) {
-      }
-    }).not.toThrow();
+    for (const value of obj.a.f) {
+      expect(typeof value).not.toEqual("symbol");
+    }
+
+    expect(() => ({ ...lens })).toThrow();
+
+    expect(() => Object.getOwnPropertyDescriptors(lens)).toThrow();
+  });
+});
+
+describe("inside React Devtools", () => {
+  test("does not throw getting descriptors", () => {
+    jest.spyOn(ReactDevtools, "isCalledInsideReactDevtools").mockImplementationOnce(() => true);
+    expect(() => Object.getOwnPropertyDescriptors(lens)).not.toThrow();
   });
 });
 
@@ -155,24 +164,4 @@ test("making a copy of a ProxyValue preserves the same attributes", () => {
 
   expect(copy.toLens()).toBe(lens);
   expect(copy).toEqual(obj);
-});
-
-test("making a copy of a ProxyLens does not work as expected", () => {
-  const spy = jest.spyOn(console, "warn").mockImplementation(() => {});
-
-  const freshLens = proxyLens<State, State>({ lens: basicLens(), createUse });
-
-  const copy = { ...freshLens };
-
-  expect(copy.a).toBeUndefined();
-
-  // access key for the first time
-  freshLens.a;
-
-  const anotherCopy = { ...freshLens };
-
-  expect(copy.a).toBeUndefined();
-  expect(anotherCopy.a).toBe(freshLens.a);
-
-  spy.mockRestore();
 });

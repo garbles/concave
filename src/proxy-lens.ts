@@ -1,8 +1,10 @@
 import { BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
+import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 
-type AnyObject = { [key: string | symbol | number]: JSON };
+type Key = string | symbol;
+type AnyObject = { [key: Key]: JSON };
 type AnyArray = JSON[];
 type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
@@ -71,8 +73,7 @@ export type ProxyLens<A> =
 
 const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
-
-let showCopyLensWarning = false;
+const THROW_ON_COPY = Symbol();
 
 let keyCounter = 0;
 const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
@@ -137,6 +138,12 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
       return { configurable: true, enumerable: true, value: (proxy as any)[key] };
     },
 
+    preventExtensions() {
+      return true;
+    },
+    isExtensible() {
+      return false;
+    },
     set() {
       throw new Error("Cannot set property on ProxyValue");
     },
@@ -175,9 +182,9 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         /**
          * Block React introspection as it will otherwise produce an infinite chain of ProxyLens values.
          */
-        // if (key === "$$typeof") {
-        //   return undefined;
-        // }
+        if (key === "$$typeof") {
+          return undefined;
+        }
 
         if (key === "$key") {
           $key ??= proxyLensKey();
@@ -200,7 +207,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         if (cache[key as keyof A] === undefined) {
-          const nextFixtures = {
+          const nextFixtures: LensFixtures<S, A[keyof A]> = {
             ...fixtures,
             lens: prop(fixtures.lens, key as keyof A),
           };
@@ -213,54 +220,53 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
       },
 
       ownKeys(target) {
-        return [...Object.keys(cache), "$key", "use", TO_LENS];
+        return ["$key", "use", THROW_ON_COPY];
       },
 
       getOwnPropertyDescriptor(target, key) {
-        if (key === "$key") {
+        if (key === "$key" || key === "use") {
           return {
             configurable: true,
             enumerable: true,
-            value: proxy.$key,
+            value: proxy[key as keyof ProxyLens<A>],
           };
         }
 
-        if (key === "use") {
+        /**
+         * This is a hack to ensure that when React Devtools is
+         * reading all of the props with `getOwnPropertyDescriptors`
+         * it does not throw an error. We do not want the
+         * lens to be copied via `{ ...lens }` or `Object.assign({}, lens)`
+         * because it will break the type safety.
+         */
+        if (ReactDevtools.isCalledInsideReactDevtools()) {
           return {
             configurable: true,
-            enumerable: true,
-            value: proxy.use,
+            enumerable: false,
+            value: undefined,
           };
         }
 
-        if (key === TO_LENS) {
-          return {
-            configurable: true,
-            enumerable: true,
-            value: proxy[TO_LENS],
-          };
-        }
-
-        if (key in cache) {
-          if (!showCopyLensWarning) {
-            showCopyLensWarning = true;
-
-            console.warn(
-              `"%c${String(key)}" as a key on ProxyLens is only available because it has been previously accessed. ` +
-                "If you are iterating through keys of this object via `{ ...obj }` or `Object.assign({}, obj)`, please consider " +
-                "an alternative approach.",
-              "color: red; font-weight: bold;"
-            );
-          }
-
-          return {
-            configurable: true,
-            enumerable: true,
-            value: cache[key as keyof LensCache],
-          };
-        }
+        /**
+         * If we reached here, we are trying to access the property descriptor
+         * for `THROW_ON_COPY`, so just throw.
+         */
+        throw new Error(
+          "ProxyLens threw because you tried to access all property descriptors—probably through " +
+            "`{ ...lens }` or `Object.assign({}, lens)`. Doing this will break the type safety offered by " +
+            "this library so it is forbidden. Sorry, buddy pal."
+        );
       },
 
+      getPrototypeOf() {
+        return null;
+      },
+      preventExtensions() {
+        return true;
+      },
+      isExtensible() {
+        return false;
+      },
       set() {
         throw new Error("Cannot set property on ProxyLens");
       },
