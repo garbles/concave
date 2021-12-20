@@ -3,7 +3,7 @@ import { isObject } from "./is-object";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 
-type Key = string | symbol;
+type Key = string | number | symbol;
 type AnyObject = { [key: Key]: JSON };
 type AnyArray = JSON[];
 type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
@@ -12,13 +12,14 @@ type Proxyable = AnyArray | AnyObject;
 
 type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
-type Use<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
-type UseProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
-type CreateUse<S> = <A>(lens: BasicLens<S, A>) => Use<A>;
+type UseLens<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
+type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
+type CreateUseLens<S> = <A>(lens: BasicLens<S, A>) => UseLens<A>;
 
 type LensFixtures<S, A> = {
   lens: BasicLens<S, A>;
-  createUse: CreateUse<S>;
+  createUseLens: CreateUseLens<S>;
+  meta: { keyPath: Key[] };
 };
 
 type BaseProxyValue<A> = {
@@ -40,7 +41,7 @@ type BaseProxyLens<A> = {
   /**
    * Collapses the `ProxyLens` into a `ProxyValue`.
    */
-  use: UseProxy<A>;
+  use: UseLensProxy<A>;
   /**
    * A unique key for cases when you need a key. e.g. A React list.
    *
@@ -75,15 +76,15 @@ const PROXY_VALUE = Symbol();
 const TO_LENS = Symbol();
 const THROW_ON_COPY = Symbol();
 
-let keyCounter = 0;
-const proxyLensKey = () => `$$ProxyLens(${keyCounter++})`;
-
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUse = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseProxy<A> => {
-  const use = fixtures.createUse(fixtures.lens);
+const createUseLens = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
+  const use = fixtures.createUseLens(fixtures.lens);
 
-  return (shouldUpdate) => {
+  /**
+   * Explicitly name the function here so that it shows up nicely in React Devtools.
+   */
+  return function useLens(shouldUpdate) {
     const [state, setState] = use(shouldUpdate);
     const next = proxyValue(state, lens);
 
@@ -187,7 +188,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         if (key === "$key") {
-          $key ??= proxyLensKey();
+          $key ??= `Lens(${fixtures.meta.keyPath.join(".")})`;
           return $key;
         }
 
@@ -202,13 +203,17 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         if (key === "use") {
-          use ??= createUse(fixtures, proxy);
+          use ??= createUseLens(fixtures, proxy);
           return use;
         }
 
         if (cache[key as keyof A] === undefined) {
           const nextFixtures: LensFixtures<S, A[keyof A]> = {
             ...fixtures,
+            meta: {
+              ...fixtures.meta,
+              keyPath: [...fixtures.meta.keyPath, key],
+            },
             lens: prop(fixtures.lens, key as keyof A),
           };
 

@@ -31,7 +31,7 @@ const initialState = (): State => ({
 let globalState: State;
 let lens: ProxyLens<State>;
 
-const createUse = <A>(lens: BasicLens<State, A>) => {
+const createUseLens = <A>(lens: BasicLens<State, A>) => {
   return () =>
     [
       lens.get(globalState),
@@ -46,7 +46,10 @@ beforeEach(() => {
 
   lens = proxyLens<State, State>({
     lens: basicLens(),
-    createUse,
+    createUseLens,
+    meta: {
+      keyPath: [],
+    },
   });
 });
 

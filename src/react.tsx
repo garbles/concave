@@ -21,9 +21,11 @@ export const stateless = <S,>() => {
   const ExternalStoreContext = React.createContext<ExternalStore<S> | Nothing>(NOTHING);
   ExternalStoreContext.displayName = "Lens(ExternalStoreContext)";
 
-  const createUse =
-    <A,>(lens: BasicLens<S, A>) =>
-    (shouldUpdate?: ShouldUpdate<A>) => {
+  const createUseLens = <A,>(lens: BasicLens<S, A>) => {
+    /**
+     * Explicitly name the function here so that it shows up nicely in React Devtools.
+     */
+    return function useLensState(shouldUpdate?: ShouldUpdate<A>) {
       const store = React.useContext(ExternalStoreContext);
 
       if (store === NOTHING) {
@@ -32,10 +34,12 @@ export const stateless = <S,>() => {
 
       return useSyncExternalStoreWithLens(store, lens, shouldUpdate);
     };
+  };
 
   const lens = proxyLens<S, S>({
     lens: basicLens(),
-    createUse,
+    createUseLens,
+    meta: { keyPath: [] },
   });
 
   const LensProvider: LensProviderComponent<S> = (props) => {
@@ -65,9 +69,19 @@ export const stateless = <S,>() => {
 export const stateful = <S,>(initialState: S) => {
   const store = externalStore(initialState);
 
+  const createUseLens = <A,>(lens: BasicLens<S, A>) => {
+    /**
+     * Explicitly name the function here so that it shows up nicely in React Devtools.
+     */
+    return function useLensState(shouldUpdate?: ShouldUpdate<A>) {
+      return useSyncExternalStoreWithLens(store, lens, shouldUpdate);
+    };
+  };
+
   const lens = proxyLens<S, S>({
     lens: basicLens(),
-    createUse: (lens) => (shouldUpdate) => useSyncExternalStoreWithLens(store, lens, shouldUpdate),
+    createUseLens,
+    meta: { keyPath: [] },
   });
 
   const ref: React.MutableRefObject<S> = {
