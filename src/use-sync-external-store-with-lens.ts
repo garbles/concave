@@ -3,15 +3,16 @@ import { BasicLens, update } from "./basic-lens";
 import { ExternalStore } from "./external-store";
 import { ShouldUpdate, ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
 
-const NOTHING = Symbol();
-
 type Nothing = typeof NOTHING;
 type Updater<A> = (a: A) => A;
+
+const NOTHING = Symbol();
+const SHOULD_ALWAYS_UPDATE = () => true;
 
 export const useSyncExternalStoreWithLens = <S, A>(
   store: ExternalStore<S>,
   lens: BasicLens<S, A>,
-  shouldUpdate: ShouldUpdate<A> = true
+  shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE
 ) => {
   /**
    * Track the previously resolved state, starting with `Nothing`.

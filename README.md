@@ -14,6 +14,12 @@ A Lens-like interface for state management in React.
 
 ### `stateless<S>(): [Lens<S>, LensProvider<S>]`
 
+### `useStateful<S>(initialState: S): [Lens<S>, MutableRefObject<S>]`
+
+The React equivalent of `stateful` as it is convenient to create a stateful lens as part of initializing a component.
+
+Note: There is no `useStateless` because the return value of `stateless` is static and can just be constructed outside the React life-cycle.
+
 ### `LensProvider<S>`
 
 ### `Lens<A>`

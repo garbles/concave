@@ -51,7 +51,7 @@ export const shouldUpdateToFunction = <A>(shouldUpdate: ShouldUpdate<A>): Should
 
     /**
      * If one value was is an array but the other isn't
-     * then stop and just return true. And fix your data...
+     * then stop and just return true... and fix your data.
      */
     if (nextIsArr !== prevIsArr) {
       return true;

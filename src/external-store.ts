@@ -10,7 +10,7 @@ export type ExternalStore<S> = {
 
 export const externalStore = <S extends {}>(initialState: S): ExternalStore<S> => {
   const listeners = new Set<Listener>();
-  let state = initialState;
+  let snapshot = initialState;
 
   return {
     subscribe(sub) {
@@ -19,20 +19,20 @@ export const externalStore = <S extends {}>(initialState: S): ExternalStore<S> =
     },
 
     getSnapshot() {
-      return state;
+      return snapshot;
     },
 
     update(updater) {
-      const next = updater(state);
+      const next = updater(snapshot);
 
       /**
-       * If the next value _is_ the previous one then do nothing.
+       * If the next value _is_ the previous snapshot then do nothing.
        */
-      if (Object.is(next, state)) {
+      if (Object.is(next, snapshot)) {
         return;
       }
 
-      state = next;
+      snapshot = next;
       listeners.forEach((fn) => fn());
     },
   };

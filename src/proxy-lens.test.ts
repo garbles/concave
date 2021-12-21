@@ -1,5 +1,5 @@
-import { basicLens, BasicLens } from "./basic-lens";
-import { proxyLens, ProxyLens } from "./proxy-lens";
+import { BasicLens, update } from "./basic-lens";
+import { initProxyLens, ProxyLens } from "./proxy-lens";
 import { ReactDevtools } from "./react-devtools";
 
 type State = {
@@ -31,26 +31,23 @@ const initialState = (): State => ({
 let globalState: State;
 let lens: ProxyLens<State>;
 
-const createUseLens = <A>(lens: BasicLens<State, A>) => {
+const createUseLensState = <A>(lens: BasicLens<State, A>) => {
+  /**
+   * Ignore keyPath and shouldUpdate here as their implementation
+   * should be left up to the React case.
+   */
   return () =>
     [
       lens.get(globalState),
       (fn: (a: A) => A) => {
-        globalState = lens.set(globalState, fn(lens.get(globalState)));
+        globalState = update(lens, fn)(globalState);
       },
     ] as const;
 };
 
 beforeEach(() => {
   globalState = initialState();
-
-  lens = proxyLens<State, State>({
-    lens: basicLens(),
-    createUseLens,
-    meta: {
-      keyPath: [],
-    },
-  });
+  lens = initProxyLens(createUseLensState);
 });
 
 describe("use", () => {
@@ -167,4 +164,15 @@ test("making a copy of a ProxyValue preserves the same attributes", () => {
 
   expect(copy.toLens()).toBe(lens);
   expect(copy).toEqual(obj);
+});
+
+test("making a copy, dot-navigating, and then returning to a lens works", () => {
+  const [obj] = lens.use();
+  const copy = { ...obj };
+
+  const b = copy.a.b;
+  const f0 = copy.a.f[0];
+
+  expect(b.toLens()).toBe(lens.a.b);
+  expect(f0.toLens()).toBe(lens.a.f[0]);
 });

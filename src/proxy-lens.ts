@@ -1,4 +1,4 @@
-import { BasicLens, prop } from "./basic-lens";
+import { basicLens, BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
@@ -12,14 +12,26 @@ type Proxyable = AnyArray | AnyObject;
 
 type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
-type UseLens<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
+type UseLensState<A> = (keyPath: Key[], shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
-type CreateUseLens<S> = <A>(lens: BasicLens<S, A>) => UseLens<A>;
+type CreateUseLensState<S> = <A>(lens: BasicLens<S, A>) => UseLensState<A>;
 
-type LensFixtures<S, A> = {
+/**
+ * We build up the next lens on every new property access
+ * because it will _eventually_ have to be done to access
+ * children, grandchildren, etc. We could defer building up
+ * the `BasicLens` until `use()` is called (by collapsing `keyPath`),
+ * but this has the added benefits of being cached and more easily typechecked.
+ * So we're always using the same `BasicLens`, regardless of how many times `use()`
+ * is called.
+ *
+ * `LensFocus` is only "known" in this module, so it's not a big deal
+ * to keep track of both `lens` and `keyPath`.
+ */
+type LensFocus<S, A> = {
+  createUseLensState: CreateUseLensState<S>;
   lens: BasicLens<S, A>;
-  createUseLens: CreateUseLens<S>;
-  meta: { keyPath: Key[] };
+  keyPath: Key[];
 };
 
 type BaseProxyValue<A> = {
@@ -39,7 +51,7 @@ type ProxyValue<A> =
 
 type BaseProxyLens<A> = {
   /**
-   * Collapses the `ProxyLens` into a `ProxyValue`.
+   * Collapses the `ProxyLens<A>` into a `ProxyValue<A>`.
    */
   use: UseLensProxy<A>;
   /**
@@ -58,7 +70,7 @@ type BaseProxyLens<A> = {
   /**
    * Internal. Only called by `ProxyValue#toLens`.
    */
-  [TO_LENS](): ProxyLens<A>;
+  [WRAP_IN_FUNC](): ProxyLens<A>;
 };
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
@@ -73,19 +85,19 @@ export type ProxyLens<A> =
   never;
 
 const PROXY_VALUE = Symbol();
-const TO_LENS = Symbol();
+const WRAP_IN_FUNC = Symbol();
 const THROW_ON_COPY = Symbol();
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUseLens = <S, A>(fixtures: LensFixtures<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
-  const use = fixtures.createUseLens(fixtures.lens);
+const createUseLens = <S, A>(focus: LensFocus<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
+  const useLensState = focus.createUseLensState(focus.lens);
 
   /**
    * Explicitly name the function here so that it shows up nicely in React Devtools.
    */
   return function useLens(shouldUpdate) {
-    const [state, setState] = use(shouldUpdate);
+    const [state, setState] = useLensState(focus.keyPath, shouldUpdate);
     const next = proxyValue(state, lens);
 
     return [next, setState];
@@ -97,6 +109,11 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
     return obj as ProxyValue<A>;
   }
 
+  /**
+   * Reuse the proxy if one already exists on the source value.
+   * `PROXY_VALUE` as a key/value will be stripped from the value
+   * when `shallowCopy` is called on it.
+   */
   if (Reflect.has(obj, PROXY_VALUE)) {
     return Reflect.get(obj, PROXY_VALUE);
   }
@@ -105,17 +122,17 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
 
   const proxy = new Proxy(obj, {
     get(target, key) {
-      if (key === PROXY_VALUE) {
-        return proxy;
-      }
-
       if (key === "toJSON") {
         toJSON ??= () => target;
         return toJSON;
       }
 
       if (key === "toLens") {
-        return lens[TO_LENS];
+        return lens[WRAP_IN_FUNC];
+      }
+
+      if (key === PROXY_VALUE) {
+        return proxy;
       }
 
       const nextValue = target[key as keyof A];
@@ -125,18 +142,52 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
     },
 
     ownKeys(target) {
-      return [...Reflect.ownKeys(target), "toLens", "toJSON"];
+      return Reflect.ownKeys(target).concat(["toLens", "toJSON"]);
     },
 
     getOwnPropertyDescriptor(target, key) {
-      if (key === PROXY_VALUE) {
-        return {
-          enumerable: false,
-          value: proxy,
+      /**
+       * Get the property descriptor for this `key`.
+       */
+      let desc: PropertyDescriptor | undefined;
+
+      /**
+       * If the key is one of the special ProxyValue keys,
+       * set the property descriptor to a custom value.
+       */
+      if (key === "toLens" || key === "toJSON") {
+        desc = {
+          configurable: true,
+          enumerable: true,
+          writable: false,
         };
+        /**
+         * Otherwise look it up on the target.
+         */
+      } else {
+        desc = Object.getOwnPropertyDescriptor(target, key);
       }
 
-      return { configurable: true, enumerable: true, value: (proxy as any)[key] };
+      /**
+       * Now bail if the descriptor is `undefined`. This could only
+       * occur if the key is not `'toLens' | 'toJSON' | keyof A`.
+       */
+      if (desc === undefined) {
+        return;
+      }
+
+      /**
+       * Defer the actual value to the proxy so that
+       * it gets wrapped in another proxy.
+       */
+      const value = (proxy as any)[key];
+
+      return {
+        writable: desc.writable,
+        enumerable: desc.enumerable,
+        configurable: desc.configurable,
+        value,
+      };
     },
 
     preventExtensions() {
@@ -163,12 +214,14 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
   Object.defineProperty(obj, PROXY_VALUE, {
     value: proxy,
     enumerable: false,
+    writable: false,
+    configurable: false,
   });
 
   return proxy;
 };
 
-export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
+const proxyLens = <S, A>(focus: LensFocus<S, A>): ProxyLens<A> => {
   type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };
   const cache: LensCache = {};
 
@@ -181,14 +234,15 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
     {
       get(_target, key) {
         /**
-         * Block React introspection as it will otherwise produce an infinite chain of ProxyLens values.
+         * Block React introspection as it will otherwise produce an infinite chain of
+         * ProxyLens values in React Devtools.
          */
         if (key === "$$typeof") {
           return undefined;
         }
 
         if (key === "$key") {
-          $key ??= `Lens(${fixtures.meta.keyPath.join(".")})`;
+          $key ??= `Lens(${focus.keyPath})`;
           return $key;
         }
 
@@ -197,27 +251,24 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
          * So even if the underlying data changes, the `ProxyValue` wrapping
          * it will always refer to the same `toLens` function.
          */
-        if (key === TO_LENS) {
+        if (key === WRAP_IN_FUNC) {
           toLens ??= () => proxy;
           return toLens;
         }
 
         if (key === "use") {
-          use ??= createUseLens(fixtures, proxy);
+          use ??= createUseLens(focus, proxy);
           return use;
         }
 
         if (cache[key as keyof A] === undefined) {
-          const nextFixtures: LensFixtures<S, A[keyof A]> = {
-            ...fixtures,
-            meta: {
-              ...fixtures.meta,
-              keyPath: [...fixtures.meta.keyPath, key],
-            },
-            lens: prop(fixtures.lens, key as keyof A),
+          const nextFocus: LensFocus<S, A[keyof A]> = {
+            ...focus,
+            keyPath: [...focus.keyPath, key],
+            lens: prop(focus.lens, key as keyof A),
           };
 
-          const nextProxy = proxyLens(nextFixtures);
+          const nextProxy = proxyLens(nextFocus);
           cache[key as keyof A] = nextProxy;
         }
 
@@ -233,6 +284,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
           return {
             configurable: true,
             enumerable: true,
+            writable: false,
             value: proxy[key as keyof ProxyLens<A>],
           };
         }
@@ -240,9 +292,7 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         /**
          * This is a hack to ensure that when React Devtools is
          * reading all of the props with `getOwnPropertyDescriptors`
-         * it does not throw an error. We do not want the
-         * lens to be copied via `{ ...lens }` or `Object.assign({}, lens)`
-         * because it will break the type safety.
+         * it does not throw an error.
          */
         if (ReactDevtools.isCalledInsideReactDevtools()) {
           return {
@@ -253,8 +303,16 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
         }
 
         /**
-         * If we reached here, we are trying to access the property descriptor
-         * for `THROW_ON_COPY`, so just throw.
+         * We otherwise do not want the lens to be introspected with `Object.getOwnPropertyDescriptors`
+         * which will happen internally with `{ ...lens }` or `Object.assign({}, lens)`.
+         * Both of those operations will create a new plain object from the properties that it can retrieve
+         * off of the lens; however, the lens is a shell around nothing and relies _heavily_ on TypeScript
+         * telling the developer which attributes are available. Therefore, copying the lens will leave you
+         * with an object that only has `$key` and `use`. Accessing `lens.user`, for example, will be
+         * `undefined` and will not be caught by TypeScript because the Proxy is typed as `A & { $key, use }`.
+         *
+         * If we've reached here, we are trying to access the property descriptor for `THROW_ON_COPY`,
+         * which is not a real property on the lens, so just throw.
          */
         throw new Error(
           "ProxyLens threw because you tried to access all property descriptors—probably through " +
@@ -282,4 +340,12 @@ export const proxyLens = <S, A>(fixtures: LensFixtures<S, A>): ProxyLens<A> => {
   ) as ProxyLens<A>;
 
   return proxy;
+};
+
+export const initProxyLens = <S>(createUseLensState: CreateUseLensState<S>): ProxyLens<S> => {
+  return proxyLens({
+    createUseLensState,
+    lens: basicLens(),
+    keyPath: [],
+  });
 };
