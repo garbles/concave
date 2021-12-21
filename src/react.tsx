@@ -1,10 +1,10 @@
 /// <reference types="react/next" />
 
 import React, { useDebugValue } from "react";
+import { debugKeyPath } from "./debug-key-path";
 import { externalStore, ExternalStore } from "./external-store";
 import { initProxyLens } from "./proxy-lens";
 import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
-import { useValueOnce } from "./use-value-once";
 
 type LensProviderProps<S> = {
   value: S;
@@ -17,7 +17,7 @@ type Nothing = typeof NOTHING;
 const NOTHING = Symbol();
 
 const useExternalStore = <S,>(value: S, onChange: (s: S) => void): ExternalStore<S> => {
-  const store = useValueOnce(() => externalStore(value));
+  const store = React.useMemo(() => externalStore(value), []);
 
   /**
    * If the value from props has changed, then let the store trigger an update.
@@ -51,7 +51,8 @@ export const stateless = <S,>(displayName = "Lens") => {
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
     return function useStatelessLensState(keyPath, shouldUpdate) {
-      useDebugValue(keyPath);
+      const debugValue = React.useMemo(() => debugKeyPath(keyPath), []);
+      useDebugValue(debugValue);
 
       const store = React.useContext(ExternalStoreContext);
 
@@ -80,7 +81,8 @@ export const stateful = <S,>(initialState: S) => {
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
     return function useStatefulLensState(keyPath, shouldUpdate) {
-      useDebugValue(keyPath);
+      const debugValue = React.useMemo(() => debugKeyPath(keyPath), []);
+      useDebugValue(debugValue);
 
       return useSyncExternalStoreWithLens(store, basic, shouldUpdate);
     };
@@ -98,4 +100,4 @@ export const stateful = <S,>(initialState: S) => {
   return [lens, ref] as const;
 };
 
-export const useStateful = <S,>(initialState: S) => useValueOnce(() => stateful<S>(initialState));
+export const useStateful = <S,>(initialState: S) => React.useMemo(() => stateful<S>(initialState), []);
