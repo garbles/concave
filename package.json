@@ -2,21 +2,21 @@
   "name": "concave",
   "version": "0.0.12",
   "description": "A Lens-like interface for state management in React",
-  "main": "dist/concave.umd.js",
-  "module": "dist/concave.es.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/concave.es.js",
-      "require": "./dist/concave.umd.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     }
   },
-  "author": "Gabe Scholz",
-  "license": "MIT",
-  "sideEffects": false,
   "files": [
     "dist"
   ],
+  "author": "Gabe Scholz",
+  "license": "MIT",
+  "sideEffects": false,
   "keywords": [
     "react",
     "lens",
@@ -32,12 +32,11 @@
   "scripts": {
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "build": "rm -rf dist && vite build",
+    "build": "tsup",
     "prepublish": "yarn test && yarn typecheck && yarn build"
   },
   "dependencies": {},
   "devDependencies": {
-    "@rollup/plugin-typescript": "^8.3.0",
     "@testing-library/react": "^13.0.0-alpha.5",
     "@types/jest": "^27.0.3",
     "@types/react": "^17.0.37",
@@ -46,12 +45,12 @@
     "react": "^18.0.0-rc.0",
     "react-dom": "^18.0.0-rc.0",
     "ts-jest": "^27.1.2",
-    "tslib": "^2.3.1",
-    "typescript": "^4.5.4",
-    "vite": "^2.7.4"
+    "tsup": "^5.11.6",
+    "typescript": "^4.5.4"
   },
   "peerDependencies": {
     "react": "^18.0.0-rc.0",
-    "react-dom": "^18.0.0-rc.0"
+    "react-dom": "^18.0.0-rc.0",
+    "@types/react": "^17.0.37"
   }
 }

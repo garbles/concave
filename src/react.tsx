@@ -1,7 +1,6 @@
 /// <reference types="react/next" />
 
-import React, { useDebugValue } from "react";
-import { keyPathToString } from "./key-path-to-string";
+import React from "react";
 import { externalStore, ExternalStore } from "./external-store";
 import { initProxyLens } from "./proxy-lens";
 import { useSyncExternalStoreWithLens } from "./use-sync-external-store-with-lens";
@@ -51,7 +50,7 @@ export const stateless = <S,>(displayName = "Lens") => {
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
     return function useStatelessLensState(debugValue, shouldUpdate) {
-      useDebugValue(debugValue);
+      React.useDebugValue(debugValue);
 
       const store = React.useContext(ExternalStoreContext);
 
@@ -80,7 +79,7 @@ export const stateful = <S,>(initialState: S) => {
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
     return function useStatefulLensState(debugValue, shouldUpdate) {
-      useDebugValue(debugValue);
+      React.useDebugValue(debugValue);
 
       return useSyncExternalStoreWithLens(store, basic, shouldUpdate);
     };

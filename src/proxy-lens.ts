@@ -5,7 +5,7 @@ import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 
 type Key = string | number | symbol;
-type AnyObject = { [key: Key]: JSON };
+type AnyObject = { [key: string | number | symbol]: JSON };
 type AnyArray = JSON[];
 type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 type JSON = AnyArray | AnyObject | AnyPrimitive;
