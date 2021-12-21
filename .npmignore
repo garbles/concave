@@ -5,5 +5,4 @@ src
 jest.config.js
 tsconfig.json
 yarn.lock
-.rollup.cache
-vite.config.js
+tsup.config.js
