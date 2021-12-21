@@ -1,5 +1,6 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
+import { keyPathToString } from "./key-path-to-string";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 
@@ -242,7 +243,7 @@ const proxyLens = <S, A>(focus: LensFocus<S, A>): ProxyLens<A> => {
         }
 
         if (key === "$key") {
-          $key ??= `Lens(${focus.keyPath})`;
+          $key ??= keyPathToString(focus.keyPath);
           return $key;
         }
 

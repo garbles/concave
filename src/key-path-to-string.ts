@@ -1,6 +1,6 @@
 type Key = string | number | symbol;
 
-export const debugKeyPath = (keyPath: Key[], prefix = "lens") => {
+export const keyPathToString = (keyPath: Key[], prefix = "lens") => {
   let result = prefix;
 
   for (let key of keyPath) {
