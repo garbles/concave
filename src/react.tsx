@@ -50,8 +50,7 @@ export const stateless = <S,>(displayName = "Lens") => {
     /**
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
-    return function useStatelessLensState(keyPath, shouldUpdate) {
-      const debugValue = React.useMemo(() => keyPathToString(keyPath), []);
+    return function useStatelessLensState(debugValue, shouldUpdate) {
       useDebugValue(debugValue);
 
       const store = React.useContext(ExternalStoreContext);
@@ -80,8 +79,7 @@ export const stateful = <S,>(initialState: S) => {
     /**
      * Explicitly name the function here so that it shows up nicely in React Devtools.
      */
-    return function useStatefulLensState(keyPath, shouldUpdate) {
-      const debugValue = React.useMemo(() => keyPathToString(keyPath), []);
+    return function useStatefulLensState(debugValue, shouldUpdate) {
       useDebugValue(debugValue);
 
       return useSyncExternalStoreWithLens(store, basic, shouldUpdate);
