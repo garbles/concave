@@ -170,11 +170,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
         return;
       }
 
-      /**
-       * Defer the actual value to the proxy so that
-       * it gets wrapped in another proxy.
-       */
-      const value = (proxy as any)[key];
+      const value = target[key as keyof A];
 
       return {
         writable: desc.writable,
