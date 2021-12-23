@@ -1,4 +1,4 @@
 import { ProxyLens } from "./proxy-lens";
 
-export { stateful, stateless, useStateful } from "./react";
+export { concave, useConcave } from "./concave";
 export type Lens<A> = Omit<ProxyLens<A>, symbol>;

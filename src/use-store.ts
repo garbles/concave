@@ -1,5 +1,5 @@
 import React from "react";
-import { ExternalStoreHandler } from "./external-store";
+import { FocusedStore } from "./store";
 import { ShouldUpdate, ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
 
 type Nothing = typeof NOTHING;
@@ -7,10 +7,7 @@ type Nothing = typeof NOTHING;
 const NOTHING = Symbol();
 const SHOULD_ALWAYS_UPDATE = () => true;
 
-export const useExternalStoreHandler = <A>(
-  handler: ExternalStoreHandler<A>,
-  shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE
-) => {
+export const useStore = <A>(store: FocusedStore<A>, shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE) => {
   /**
    * Track the previously resolved state, starting with `Nothing`.
    */
@@ -37,7 +34,7 @@ export const useExternalStoreHandler = <A>(
 
   const getSnapshot = () => {
     const prev = prevStateRef.current;
-    const next = handler.getSnapshot();
+    const next = store.getSnapshot();
 
     /**
      * If `prev` _is_ `next` then we should bail because nothing changed.
@@ -73,8 +70,8 @@ export const useExternalStoreHandler = <A>(
     }
   };
 
-  const state = React.useSyncExternalStore(handler.subscribe, getSnapshot, getSnapshot);
-  const setState = handler.update;
+  const state = React.useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+  const setState = store.update;
 
   /**
    * Assign the current state to the previous state so that when `getSnapshot`

@@ -6,7 +6,7 @@ import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { ProxyLens } from "./proxy-lens";
-import { stateful, stateless } from "./react";
+import { concave } from "./concave";
 import { ShouldUpdate } from "./should-update";
 
 type State = {
@@ -23,7 +23,11 @@ type State = {
 
 const initialState: State = { a: { b: { c: "cool" }, d: { e: 0 } }, f: [{ g: true }, { g: false }] };
 
-const [lens, LensProvider] = stateless<State>();
+const [lens, handler] = concave<State>(initialState);
+
+beforeEach(() => {
+  handler.update(() => initialState);
+});
 
 const App = (props: { state: ProxyLens<State> }) => {
   const [cState, setC] = props.state.a.b.c.use();
@@ -37,18 +41,8 @@ const App = (props: { state: ProxyLens<State> }) => {
   );
 };
 
-const Provider: React.FC = (props) => {
-  const [state, setState] = React.useState(initialState);
-
-  return (
-    <LensProvider value={state} onChange={setState}>
-      {props.children}
-    </LensProvider>
-  );
-};
-
 test("renders", () => {
-  render(<Provider>{<App state={lens} />}</Provider>);
+  render(<App state={lens} />);
 
   const el = screen.getByTestId("element");
 
@@ -56,7 +50,7 @@ test("renders", () => {
 });
 
 test("updates", () => {
-  render(<Provider>{<App state={lens} />}</Provider>);
+  render(<App state={lens} />);
 
   const el = screen.getByTestId("element");
 
@@ -102,11 +96,11 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   });
 
   render(
-    <Provider>
+    <>
       <App state={lens} />
       <E state={lens} />
       <B state={lens} />
-    </Provider>
+    </>
   );
 
   const el = screen.getByTestId("element");
@@ -131,55 +125,6 @@ test("does not re-render adjacent that do not listen to same state elements", ()
    */
   expect(bRenderCount).toEqual(2);
   expect(JSON.parse(b.dataset.b ?? "")).toEqual({ c: "cool!!!!" });
-});
-
-test("renders sets new props into the lens", () => {
-  let state = initialState;
-
-  const make = () => (
-    <LensProvider
-      value={initialState}
-      onChange={(next) => {
-        state = next;
-      }}
-    >
-      <App state={lens} />
-    </LensProvider>
-  );
-
-  const { rerender } = render(make());
-
-  const el = screen.getByTestId("element");
-
-  expect(el.innerHTML).toEqual("cool");
-
-  act(() => {
-    el.click();
-  });
-
-  state.a.b.c = "hello";
-  rerender(make());
-
-  expect(el.innerHTML).toEqual("hello");
-
-  act(() => {
-    el.click();
-  });
-
-  act(() => {
-    el.click();
-  });
-
-  expect(el.innerHTML).toEqual("hello!!");
-
-  state.a.b.c = "goodbye";
-  rerender(make());
-
-  act(() => {
-    el.click();
-  });
-
-  expect(el.innerHTML).toEqual("goodbye!");
 });
 
 describe("should update", () => {
@@ -230,11 +175,7 @@ describe("should update", () => {
   });
 
   test("re-renders a list when memebers added to a list", () => {
-    render(
-      <Provider>
-        <F />
-      </Provider>
-    );
+    render(<F />);
 
     const pushGButton = screen.getByTestId("push-g-button");
 
@@ -258,19 +199,11 @@ describe("should update", () => {
 
   test("accepts length for lists", () => {
     // noop. just a typecheck here
-    render(
-      <Provider>
-        <F shouldUpdate={["length"]} />
-      </Provider>
-    );
+    render(<F shouldUpdate={["length"]} />);
   });
 
   test("function returning false never re-renders", () => {
-    render(
-      <Provider>
-        <F shouldUpdate={() => false} />
-      </Provider>
-    );
+    render(<F shouldUpdate={() => false} />);
 
     const pushGButton = screen.getByTestId("push-g-button");
 
@@ -293,11 +226,7 @@ describe("should update", () => {
   test.each([(prev, next) => prev.length !== next.length, [], {}] as ShouldUpdate<State["f"]>[])(
     "does not re-render unless the length has changed",
     (shouldUpdate) => {
-      render(
-        <Provider>
-          <F shouldUpdate={shouldUpdate} />
-        </Provider>
-      );
+      render(<F shouldUpdate={shouldUpdate} />);
 
       expect(fRenderCount).toEqual(1);
       expect(gRenderCount).toEqual(2);
@@ -321,18 +250,8 @@ describe("should update", () => {
   );
 });
 
-test("throws an error without context", () => {
-  const spy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-  expect(() => render(<App state={lens} />)).toThrowError(
-    "Cannot call `lens.use()` in a component outside of <LensProvider />"
-  );
-
-  spy.mockRestore();
-});
-
 test("does not throw error with stateful lens", () => {
-  const [otherLens] = stateful(initialState);
+  const [otherLens] = concave(initialState);
 
   expect(() => render(<App state={otherLens} />)).not.toThrow();
 });
@@ -349,11 +268,7 @@ test("multiple hooks only trigger one re-render", () => {
     return <button data-testid="c-button" onClick={() => setC((c) => c + "!")} />;
   };
 
-  render(
-    <Provider>
-      <Test />
-    </Provider>
-  );
+  render(<Test />);
 
   expect(renderCount).toEqual(1);
 
@@ -373,11 +288,7 @@ test("renders to string", () => {
     return <pre>{state.a.b.c}</pre>;
   };
 
-  const result = ReactDOMServer.renderToString(
-    <Provider>
-      <Test />
-    </Provider>
-  );
+  const result = ReactDOMServer.renderToString(<Test />);
 
   expect(result).toEqual(`<pre>cool</pre>`);
 });
@@ -394,11 +305,7 @@ test("ignores passing the same value", () => {
     return <button data-testid="a-button" onClick={() => setA((next) => next)} />;
   };
 
-  render(
-    <Provider>
-      <Test />
-    </Provider>
-  );
+  render(<Test />);
 
   expect(renderCount).toEqual(1);
 
@@ -410,5 +317,3 @@ test("ignores passing the same value", () => {
 
   expect(renderCount).toEqual(1);
 });
-
-test.todo("if onChange is not handled, the value will not change");

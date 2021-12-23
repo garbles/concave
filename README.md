@@ -10,7 +10,7 @@ A Lens-like interface for state management in React.
 
 ## API
 
-### `stateful<S>(initialState: S): [Lens<S>, MutableRefObject<S>]`
+### `concave<S>(initialState: S): [Lens<S>, Store<S>]`
 
 ### `stateless<S>(): [Lens<S>, LensProvider<S>]`
 
