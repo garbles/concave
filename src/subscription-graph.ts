@@ -8,18 +8,6 @@ type SubscriptionNodeAncestor = { none: true } | { none: false; keyPath: Key[] }
 
 const id = keyPathToString;
 
-class StrongMap<K, V> extends Map<K, V> {
-  getOrThrow(key: K) {
-    const value = this.get(key);
-
-    if (value === undefined) {
-      throw new Error(`StrongMap could not get "${key}"`);
-    }
-
-    return value;
-  }
-}
-
 class SubscriptionNode {
   private listeners = new Set<Listener>();
   public readonly id: string;
@@ -56,7 +44,7 @@ class SubscriptionNode {
 export class SubscriptionGraph {
   private nodes = new Map<NodeId, SubscriptionNode>();
   private parents = new Map<NodeId, SubscriptionNode>();
-  private children = new StrongMap<NodeId, Set<SubscriptionNode>>();
+  private children = new Map<NodeId, Set<SubscriptionNode>>();
 
   /**
    * Notifies all ancestors and then all children of the node.
@@ -144,7 +132,14 @@ export class SubscriptionGraph {
     /**
      * Add this node to the set of children for the parent.
      */
-    this.children.getOrThrow(parent.id).add(node);
+    const siblings = this.children.get(parent.id);
+
+    if (siblings === undefined) {
+      // impossible?
+      throw new Error("Unexpected Error");
+    }
+
+    siblings.add(node);
 
     return node;
   }
@@ -175,7 +170,7 @@ export class SubscriptionGraph {
      */
     node.notify();
 
-    const children = this.children.getOrThrow(node.id);
+    const children = this.children.get(node.id) ?? new Set();
 
     for (const child of children) {
       this.notifySelfAndChildren(child);
@@ -187,7 +182,7 @@ export class SubscriptionGraph {
    * If so, then it should be cleaned up to avoid memory leaks.
    */
   private clean(node: SubscriptionNode) {
-    const children = this.children.getOrThrow(node.id);
+    const children = this.children.get(node.id) ?? new Set();
 
     /**
      * If the node has any dependents (children or listeners),
@@ -218,7 +213,8 @@ export class SubscriptionGraph {
        * Remove the node from the parent's list of children. It's a `Set`
        * so no need to re-insert into `this.children`.
        */
-      this.children.getOrThrow(parent.id).delete(node);
+      const siblings = this.children.get(parent.id) ?? new Set();
+      siblings.delete(node);
 
       /**
        * Now recurse and see whether the parent node should also be removed.

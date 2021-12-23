@@ -110,8 +110,8 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
 
   /**
    * Reuse the proxy if one already exists on the source value.
-   * `PROXY_VALUE` as a key/value will be stripped from the value
-   * when `shallowCopy` is called on it.
+   * `PROXY_VALUE` will be stripped from the `obj`
+   * if `shallowCopy` is called on it.
    */
   if (Reflect.has(obj, PROXY_VALUE)) {
     return Reflect.get(obj, PROXY_VALUE);
