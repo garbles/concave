@@ -1,3 +1,4 @@
+import { BasicLens } from "./basic-lens";
 import { SubscriptionGraph } from "./subscription-graph";
 
 type Key = string | number | symbol;
@@ -5,49 +6,40 @@ type Listener = () => void;
 type Unsubscribe = () => void;
 type Updater<A> = (a: A) => A;
 
-type Handler<S> = {
+export type ExternalStoreHandler<A> = {
+  getSnapshot(): A;
   subscribe(onStoreChange: Listener): Unsubscribe;
-  update(updater: Updater<S>): void;
+  update(updater: Updater<A>): void;
 };
 
-export type ExternalStore<S> = {
-  getSnapshot(): S;
-  handle(keyPath: Key[]): Handler<S>;
-};
+export type ExternalStore<S> = <A>(keyPath: Key[], lens: BasicLens<S, A>) => ExternalStoreHandler<A>;
 
 export const externalStore = <S extends {}>(initialState: S): ExternalStore<S> => {
   const graph = new SubscriptionGraph();
   let snapshot = initialState;
 
-  const getSnapshot = () => snapshot;
-
-  /**
-   * Closes over a `keyPath` so that its clear—external to those module—that
-   * `subscribe` and `update` affect only the same piece of data.
-   */
-  const handle = (keyPath: Key[]): Handler<S> => {
+  return (keyPath, lens) => {
     return {
+      getSnapshot() {
+        return lens.get(snapshot);
+      },
       subscribe(listener) {
         return graph.subscribe(keyPath, listener);
       },
       update(updater) {
-        const next = updater(snapshot);
+        const prev = lens.get(snapshot);
+        const next = updater(prev);
 
         /**
          * If the next value _is_ the previous snapshot then do nothing.
          */
-        if (Object.is(next, snapshot)) {
+        if (Object.is(next, prev)) {
           return;
         }
 
-        snapshot = next;
+        snapshot = lens.set(snapshot, next);
         graph.notify(keyPath);
       },
     };
-  };
-
-  return {
-    getSnapshot,
-    handle,
   };
 };

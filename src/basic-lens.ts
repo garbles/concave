@@ -51,20 +51,3 @@ export const prop = <S extends {}, A extends {}, K extends keyof A>(
     }
   );
 };
-
-export const update =
-  <S, A>(lens: BasicLens<S, A>, updater: Updater<A>) =>
-  (s: S): S => {
-    const prev = lens.get(s);
-    const next = updater(prev);
-
-    /**
-     * If the previous value is the next one then this action
-     * would be a noop—but it would break all of the references—so do nothing.
-     */
-    if (Object.is(prev, next)) {
-      return s;
-    }
-
-    return lens.set(s, updater(prev));
-  };

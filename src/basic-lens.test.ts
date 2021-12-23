@@ -1,4 +1,4 @@
-import { basicLens, prop, update } from "./basic-lens";
+import { basicLens, prop } from "./basic-lens";
 
 type State = {
   a: {
@@ -54,10 +54,4 @@ test("only updates parts of the data", () => {
   const next = b.set(state, { c: 0 });
 
   expect(next.a.d).toBe(state.a.d);
-});
-
-test("does nothing when an updater returns the same thing", () => {
-  const next = update(c, (s) => s)(state);
-
-  expect(state).toBe(next);
 });

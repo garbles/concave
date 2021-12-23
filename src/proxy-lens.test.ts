@@ -1,4 +1,4 @@
-import { BasicLens, update } from "./basic-lens";
+import { BasicLens } from "./basic-lens";
 import { initProxyLens, ProxyLens } from "./proxy-lens";
 import { ReactDevtools } from "./react-devtools";
 
@@ -39,8 +39,8 @@ const createUseLensState = <A>(lens: BasicLens<State, A>) => {
   return () =>
     [
       lens.get(globalState),
-      (fn: (a: A) => A) => {
-        globalState = update(lens, fn)(globalState);
+      (updater: (a: A) => A) => {
+        globalState = lens.set(globalState, updater(lens.get(globalState)));
       },
     ] as const;
 };

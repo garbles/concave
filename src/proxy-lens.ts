@@ -13,9 +13,9 @@ type Proxyable = AnyArray | AnyObject;
 
 type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
-type UseLensState<A> = (keyPath: Key[], shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
+type UseLensState<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
-type CreateUseLensState<S> = <A>(lens: BasicLens<S, A>) => UseLensState<A>;
+type CreateUseLensState<S> = <A>(lens: BasicLens<S, A>, keyPath: Key[]) => UseLensState<A>;
 
 type LensFocus<S, A> = {
   createUseLensState: CreateUseLensState<S>;
@@ -79,14 +79,14 @@ const THROW_ON_COPY = Symbol();
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const createUseLens = <S, A>(focus: LensFocus<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
-  const useLensState = focus.createUseLensState(focus.lens);
+const createUseLensProxy = <S, A>(focus: LensFocus<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
+  const useLensState = focus.createUseLensState(focus.lens, focus.keyPath);
 
   /**
    * Explicitly name the function here so that it shows up nicely in React Devtools.
    */
   return function useLens(shouldUpdate) {
-    const [state, setState] = useLensState(focus.keyPath, shouldUpdate);
+    const [state, setState] = useLensState(shouldUpdate);
     const next = proxyValue(state, lens);
 
     return [next, setState];
@@ -246,7 +246,7 @@ const proxyLens = <S, A>(focus: LensFocus<S, A>): ProxyLens<A> => {
         }
 
         if (key === "use") {
-          use ??= createUseLens(focus, proxy);
+          use ??= createUseLensProxy(focus, proxy);
           return use;
         }
 
