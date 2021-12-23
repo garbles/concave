@@ -6,19 +6,24 @@ type Listener = () => void;
 type Unsubscribe = () => void;
 type Updater<A> = (a: A) => A;
 
+type LensFocus<S, A> = {
+  keyPath: Key[];
+  lens: BasicLens<S, A>;
+};
+
 export type ExternalStoreHandler<A> = {
   getSnapshot(): A;
   subscribe(onStoreChange: Listener): Unsubscribe;
   update(updater: Updater<A>): void;
 };
 
-export type ExternalStore<S> = <A>(keyPath: Key[], lens: BasicLens<S, A>) => ExternalStoreHandler<A>;
+export type ExternalStore<S> = <A>(focus: LensFocus<S, A>) => ExternalStoreHandler<A>;
 
 export const externalStore = <S extends {}>(initialState: S): ExternalStore<S> => {
   const graph = new SubscriptionGraph();
   let snapshot = initialState;
 
-  return (keyPath, lens) => {
+  return ({ keyPath, lens }) => {
     return {
       getSnapshot() {
         return lens.get(snapshot);

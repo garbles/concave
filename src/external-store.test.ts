@@ -9,7 +9,7 @@ type State = {
 test("triggers one call to listeners per call", () => {
   const store = externalStore<State>({ a: 0, b: 0 });
   const listener = jest.fn();
-  const handler = store([], basicLens());
+  const handler = store({ keyPath: [], lens: basicLens() });
 
   const unsubscribe = handler.subscribe(listener);
 
@@ -24,7 +24,7 @@ test("triggers one call to listeners per call", () => {
 test("noop when the same value is returned", () => {
   const store = externalStore<State>({ a: 0, b: 0 });
   const listener = jest.fn();
-  const handler = store([], basicLens());
+  const handler = store({ keyPath: [], lens: basicLens() });
 
   const unsubscribe = handler.subscribe(listener);
 

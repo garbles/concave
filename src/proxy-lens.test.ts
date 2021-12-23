@@ -31,23 +31,22 @@ const initialState = (): State => ({
 let globalState: State;
 let lens: ProxyLens<State>;
 
-const createUseLensState = <A>(lens: BasicLens<State, A>) => {
-  /**
-   * Ignore keyPath and shouldUpdate here as their implementation
-   * should be left up to the React case.
-   */
-  return () =>
-    [
-      lens.get(globalState),
-      (updater: (a: A) => A) => {
-        globalState = lens.set(globalState, updater(lens.get(globalState)));
-      },
-    ] as const;
-};
-
 beforeEach(() => {
   globalState = initialState();
-  lens = initProxyLens(createUseLensState);
+
+  lens = initProxyLens<State>((focus) => {
+    /**
+     * Ignore keyPath and shouldUpdate here as their implementation
+     * should be left up to the React case.
+     */
+    return () =>
+      [
+        focus.lens.get(globalState),
+        (updater) => {
+          globalState = focus.lens.set(globalState, updater(focus.lens.get(globalState)));
+        },
+      ] as const;
+  });
 });
 
 describe("use", () => {
