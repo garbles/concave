@@ -30,8 +30,9 @@ A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refe
 
 1. Use shouldUpdate.
 
-2. If do use a shouldUpdate argument for the lens, you can either memoize it with `React.useMemo` or `React.useCallback` or store it outside
-   of the component.
+2. If do use a shouldUpdate argument for the lens, you can either memoize it with `React.useMemo` or `React.useCallback` or store it outside of the component.
+
+3. Memoize every component with `React.memo` foward lenses as props rather than globals.
 
 ## Example
 

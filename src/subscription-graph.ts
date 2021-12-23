@@ -119,7 +119,7 @@ export class SubscriptionGraph {
     /**
      * Upsert the parent node. It will recursively create
      * the parent if it does not exist yet. An example of how this
-     * could happen might be calling this with `['a', 'b', 'c']`
+     * could happen might be calling subscribe with `['a', 'b', 'c']`
      * before calling it with `['a']` or `['a', 'b']`. See tests.
      */
     const parent = this.addNode(node.ancestor.keyPath);
@@ -196,6 +196,7 @@ export class SubscriptionGraph {
      * Remove this node from the list of nodes.
      */
     this.nodes.delete(node.id);
+    this.children.delete(node.id);
 
     /**
      * Get the parent node. If there is no parent, we
