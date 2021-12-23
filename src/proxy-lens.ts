@@ -20,6 +20,7 @@ type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
 type UseLensState<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
+
 type CreateUseLensState<S> = <A>(focus: LensFocus<S, A>) => UseLensState<A>;
 
 type BaseProxyValue<A> = {
