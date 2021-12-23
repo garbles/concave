@@ -1,6 +1,6 @@
 import React from "react";
-import { Store } from "./store";
-import { ShouldUpdate, ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
+import type { Store } from "./store";
+import { type ShouldUpdate, type ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
 
 type Nothing = typeof NOTHING;
 

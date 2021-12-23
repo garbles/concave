@@ -2,9 +2,9 @@
 
 import React from "react";
 import { basicLens } from "./basic-lens";
-import { createStoreFactory, Store } from "./store";
 import { keyPathToString } from "./key-path-to-string";
 import { initProxyLens, ProxyLens } from "./proxy-lens";
+import { createStoreFactory, Store } from "./store";
 import { useStore } from "./use-store";
 
 export type Lens<A> = Omit<ProxyLens<A>, symbol>;
@@ -12,6 +12,13 @@ export type Lens<A> = Omit<ProxyLens<A>, symbol>;
 export const concave = <S,>(initialState: S): [Lens<S>, Store<S>] => {
   const factory = createStoreFactory(initialState);
   const root = factory({ keyPath: [], lens: basicLens() });
+
+  /**
+   * Can't really generalize this without higher-kinded types :(.
+   * Needs to be a way to describe a hook factory that creates a hook returning
+   *  the same type as `store.getSnapshot()`, but the factory must
+   * be passed in as an argument to the function wrapping this.
+   */
 
   const lens = initProxyLens<S>((focus) => {
     const debugValue = keyPathToString(focus.keyPath);

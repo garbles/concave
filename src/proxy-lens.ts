@@ -1,8 +1,8 @@
-import { basicLens, BasicLens, prop } from "./basic-lens";
+import { basicLens, type BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 import { keyPathToString } from "./key-path-to-string";
 import { ReactDevtools } from "./react-devtools";
-import { ShouldUpdate } from "./should-update";
+import type { ShouldUpdate } from "./should-update";
 
 type Key = string | number | symbol;
 type AnyObject = { [key: string | number | symbol]: JSON };

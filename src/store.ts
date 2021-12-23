@@ -1,4 +1,4 @@
-import { BasicLens } from "./basic-lens";
+import type { BasicLens } from "./basic-lens";
 import { SubscriptionGraph } from "./subscription-graph";
 
 type Key = string | number | symbol;
