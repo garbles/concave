@@ -1,4 +1,3 @@
-import { BasicLens } from "./basic-lens";
 import { initProxyLens, ProxyLens } from "./proxy-lens";
 import { ReactDevtools } from "./react-devtools";
 

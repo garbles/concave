@@ -1,8 +1,8 @@
-import { basicLens, type BasicLens, prop } from "./basic-lens";
+import { basicLens, BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 import { keyPathToString } from "./key-path-to-string";
 import { ReactDevtools } from "./react-devtools";
-import type { ShouldUpdate } from "./should-update";
+import { ShouldUpdate } from "./should-update";
 
 type Key = string | number | symbol;
 type AnyObject = { [key: string | number | symbol]: JSON };
@@ -194,7 +194,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
     },
   }) as ProxyValue<A>;
 
-  valueCache.set(obj, proxy as ProxyValue<unknown>)
+  valueCache.set(obj, proxy as ProxyValue<unknown>);
 
   return proxy;
 };
@@ -315,5 +315,6 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
   return proxy;
 };
 
-export const initProxyLens = <S>(createUseLensState: CreateUseLensState<S>): ProxyLens<S> =>
-  proxyLens(createUseLensState, { lens: basicLens(), keyPath: [] });
+export const initProxyLens = <S>(createUseLensState: CreateUseLensState<S>): ProxyLens<S> => {
+  return proxyLens(createUseLensState, { lens: basicLens(), keyPath: [] });
+};
