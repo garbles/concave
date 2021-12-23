@@ -12,7 +12,7 @@ A Lens-like interface for state management in React.
 
 ### `concave<S>(initialState: S): [Lens<S>, Store<S>]`
 
-### `useConsave<S>(initialState: S): [Lens<S>, Store<S>]`
+### `useConcave<S>(initialState: S): [Lens<S>, Store<S>]`
 
 ### `Lens<A>`
 
