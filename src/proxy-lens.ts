@@ -73,7 +73,6 @@ export type ProxyLens<A> =
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
 
-const PROXY_VALUE = Symbol();
 const WRAP_IN_FUNC = Symbol();
 const THROW_ON_COPY = Symbol();
 
@@ -104,18 +103,17 @@ const createUseLensProxy = <S, A>(
   };
 };
 
+const valueCache = new WeakMap<{}, ProxyValue<unknown>>();
+
 const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
   if (!isProxyable(obj)) {
     return obj as ProxyValue<A>;
   }
 
-  /**
-   * Reuse the proxy if one already exists on the source value.
-   * `PROXY_VALUE` will be stripped from the `obj`
-   * if `shallowCopy` is called on it.
-   */
-  if (Reflect.has(obj, PROXY_VALUE)) {
-    return Reflect.get(obj, PROXY_VALUE);
+  const cached: ProxyValue<A> | undefined = valueCache.get(obj);
+
+  if (cached) {
+    return cached;
   }
 
   let toJSON: unknown;
@@ -129,10 +127,6 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
 
       if (key === "toLens") {
         return lens[WRAP_IN_FUNC];
-      }
-
-      if (key === PROXY_VALUE) {
-        return proxy;
       }
 
       const nextValue = target[key as keyof A];
@@ -204,19 +198,7 @@ const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
     },
   }) as ProxyValue<A>;
 
-  /**
-   * Do not allow `PROXY_VALUE` to be enumerable so that:
-   *
-   * 1. Creating a shallow copy `{ ...obj }` will ignore it. This ensures the
-   *    proxy value is forgotten when the actual value changes.
-   * 2. It is not accessible outside of this module.
-   */
-  Object.defineProperty(obj, PROXY_VALUE, {
-    value: proxy,
-    enumerable: false,
-    writable: false,
-    configurable: false,
-  });
+  valueCache.set(obj, proxy as ProxyValue<unknown>)
 
   return proxy;
 };
