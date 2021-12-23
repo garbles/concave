@@ -5,8 +5,7 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import { ProxyLens } from "./proxy-lens";
-import { concave } from "./react";
+import { concave, Lens } from "./react";
 import { ShouldUpdate } from "./should-update";
 
 type State = {
@@ -29,7 +28,7 @@ beforeEach(() => {
   handler.update(() => initialState);
 });
 
-const App = (props: { state: ProxyLens<State> }) => {
+const App = (props: { state: Lens<State> }) => {
   const [cState, setC] = props.state.a.b.c.use();
 
   const onClick = () => setC((c) => c + "!");
@@ -79,7 +78,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   let eRenderCount = 0;
   let bRenderCount = 0;
 
-  const E = React.memo((props: { state: ProxyLens<State> }) => {
+  const E = React.memo((props: { state: Lens<State> }) => {
     props.state.a.d.e.use();
 
     eRenderCount++;
@@ -87,7 +86,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
     return <div />;
   });
 
-  const B = React.memo((props: { state: ProxyLens<State> }) => {
+  const B = React.memo((props: { state: Lens<State> }) => {
     const [b] = props.state.a.b.use();
 
     bRenderCount++;
@@ -132,7 +131,7 @@ describe("should update", () => {
   let fRenderCount = 0;
 
   type GProps = {
-    state: ProxyLens<{ g: boolean }>;
+    state: Lens<{ g: boolean }>;
   };
 
   const G = React.memo((props: GProps) => {

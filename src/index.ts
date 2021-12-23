@@ -1,4 +1,4 @@
-import { ProxyLens } from "./proxy-lens";
+import type { Lens } from "./react";
 
 export { concave, useConcave } from "./react";
-export type Lens<A> = Omit<ProxyLens<A>, symbol>;
+export { Lens };
