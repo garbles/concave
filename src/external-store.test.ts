@@ -8,11 +8,12 @@ type State = {
 test("triggers one call to listeners per call", () => {
   const store = externalStore<State>({ a: 0, b: 0 });
   const listener = jest.fn();
+  const handler = store.handle([]);
 
-  const unsubscribe = store.subscribe(listener);
+  const unsubscribe = handler.subscribe(listener);
 
-  store.update((s) => ({ ...s, a: s.a + 1 }));
-  store.update((s) => ({ ...s, b: s.b + 1 }));
+  handler.update((s) => ({ ...s, a: s.a + 1 }));
+  handler.update((s) => ({ ...s, b: s.b + 1 }));
 
   expect(listener).toHaveBeenCalledTimes(2);
 
@@ -22,10 +23,11 @@ test("triggers one call to listeners per call", () => {
 test("noop when the same value is returned", () => {
   const store = externalStore<State>({ a: 0, b: 0 });
   const listener = jest.fn();
+  const handler = store.handle([]);
 
-  const unsubscribe = store.subscribe(listener);
+  const unsubscribe = handler.subscribe(listener);
 
-  store.update((s) => s);
+  handler.update((s) => s);
 
   expect(listener).toHaveBeenCalledTimes(0);
 

@@ -13,22 +13,10 @@ type Proxyable = AnyArray | AnyObject;
 
 type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
-type UseLensState<A> = (debugKey: string, shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
+type UseLensState<A> = (keyPath: Key[], shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
 type CreateUseLensState<S> = <A>(lens: BasicLens<S, A>) => UseLensState<A>;
 
-/**
- * We build up the next lens on every new property access
- * because it will _eventually_ have to be done to access
- * children, grandchildren, etc. We could defer building up
- * the `BasicLens` until `use()` is called (by collapsing `keyPath`),
- * but this has the added benefits of being cached and more easily typechecked.
- * So we're always using the same `BasicLens`, regardless of how many times `use()`
- * is called.
- *
- * `LensFocus` is only "known" in this module, so it's not a big deal
- * to keep track of both `lens` and `keyPath`.
- */
 type LensFocus<S, A> = {
   createUseLensState: CreateUseLensState<S>;
   lens: BasicLens<S, A>;
@@ -93,13 +81,12 @@ const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObje
 
 const createUseLens = <S, A>(focus: LensFocus<S, A>, lens: ProxyLens<A>): UseLensProxy<A> => {
   const useLensState = focus.createUseLensState(focus.lens);
-  const debugKey = keyPathToString(focus.keyPath);
 
   /**
    * Explicitly name the function here so that it shows up nicely in React Devtools.
    */
   return function useLens(shouldUpdate) {
-    const [state, setState] = useLensState(debugKey, shouldUpdate);
+    const [state, setState] = useLensState(focus.keyPath, shouldUpdate);
     const next = proxyValue(state, lens);
 
     return [next, setState];
@@ -264,6 +251,18 @@ const proxyLens = <S, A>(focus: LensFocus<S, A>): ProxyLens<A> => {
         }
 
         if (cache[key as keyof A] === undefined) {
+          /**
+           * We build up the next lens on every new property access
+           * because it will _eventually_ have to be done to access
+           * children, grandchildren, etc. We could defer building up
+           * the `BasicLens` until `use()` is called (by collapsing `keyPath`),
+           * but this has the added benefits of being cached and more easily typechecked.
+           * So we're always using the same `BasicLens` regardless of how many times `use()`
+           * is called.
+           *
+           * `LensFocus` is only "known" in this module, so it's not a big deal
+           * to keep track of both `lens` and `keyPath`.
+           */
           const nextFocus: LensFocus<S, A[keyof A]> = {
             ...focus,
             keyPath: [...focus.keyPath, key],

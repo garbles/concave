@@ -1,15 +1,24 @@
 type Key = string | number | symbol;
 
-export const keyPathToString = (keyPath: Key[], prefix = "lens") => {
-  let result = prefix;
+const cache = new WeakMap<Key[], string>();
+const IS_NUMBER_STRING = /^\d+$/;
 
-  for (let key of keyPath) {
-    if (typeof key === "symbol" || typeof key === "number" || key.match(/^\d+$/)) {
-      result += `[${String(key)}]`;
-    } else {
-      result += `.${key}`;
+export const keyPathToString = (keyPath: Key[]) => {
+  let cached = cache.get(keyPath);
+
+  if (!cached) {
+    cached = "root";
+
+    for (let key of keyPath) {
+      if (typeof key === "symbol" || typeof key === "number" || key.match(IS_NUMBER_STRING)) {
+        cached += `[${String(key)}]`;
+      } else {
+        cached += `.${key}`;
+      }
     }
+
+    cache.set(keyPath, cached);
   }
 
-  return result;
+  return cached;
 };

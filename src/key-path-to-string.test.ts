@@ -5,5 +5,5 @@ test("joins a keypath together", () => {
 
   const result = keyPathToString(keyPath);
 
-  expect(result).toEqual("lens.a.b[10].c[55][Symbol(hello)].d");
+  expect(result).toEqual("root.a.b[10].c[55][Symbol(hello)].d");
 });

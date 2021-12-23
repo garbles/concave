@@ -3,6 +3,7 @@ import { BasicLens, update } from "./basic-lens";
 import { ExternalStore } from "./external-store";
 import { ShouldUpdate, ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
 
+type Key = string | number | symbol;
 type Nothing = typeof NOTHING;
 type Updater<A> = (a: A) => A;
 
@@ -12,6 +13,7 @@ const SHOULD_ALWAYS_UPDATE = () => true;
 export const useSyncExternalStoreWithLens = <S, A>(
   store: ExternalStore<S>,
   lens: BasicLens<S, A>,
+  keyPath: Key[],
   shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE
 ) => {
   /**
@@ -76,9 +78,11 @@ export const useSyncExternalStoreWithLens = <S, A>(
     }
   };
 
-  const state = React.useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+  const handler = React.useMemo(() => store.handle(keyPath), []);
 
-  const setState = React.useCallback((updater: Updater<A>) => store.update(update(lens, updater)), [store]);
+  const state = React.useSyncExternalStore(handler.subscribe, getSnapshot, getSnapshot);
+
+  const setState = React.useCallback((updater: Updater<A>) => handler.update(update(lens, updater)), [handler]);
 
   /**
    * Assign the current state to the previous state so that when `getSnapshot`
