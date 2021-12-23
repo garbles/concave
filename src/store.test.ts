@@ -1,5 +1,5 @@
 import { basicLens } from "./basic-lens";
-import { createStore } from "./store";
+import { createStoreFactory } from "./store";
 
 type State = {
   a: number;
@@ -7,14 +7,14 @@ type State = {
 };
 
 test("triggers one call to listeners per call", () => {
-  const store = createStore<State>({ a: 0, b: 0 });
+  const factory = createStoreFactory<State>({ a: 0, b: 0 });
   const listener = jest.fn();
-  const focused = store({ keyPath: [], lens: basicLens() });
+  const store = factory({ keyPath: [], lens: basicLens() });
 
-  const unsubscribe = focused.subscribe(listener);
+  const unsubscribe = store.subscribe(listener);
 
-  focused.update((s) => ({ ...s, a: s.a + 1 }));
-  focused.update((s) => ({ ...s, b: s.b + 1 }));
+  store.update((s) => ({ ...s, a: s.a + 1 }));
+  store.update((s) => ({ ...s, b: s.b + 1 }));
 
   expect(listener).toHaveBeenCalledTimes(2);
 
@@ -22,13 +22,13 @@ test("triggers one call to listeners per call", () => {
 });
 
 test("noop when the same value is returned", () => {
-  const store = createStore<State>({ a: 0, b: 0 });
+  const factory = createStoreFactory<State>({ a: 0, b: 0 });
   const listener = jest.fn();
-  const focused = store({ keyPath: [], lens: basicLens() });
+  const store = factory({ keyPath: [], lens: basicLens() });
 
-  const unsubscribe = focused.subscribe(listener);
+  const unsubscribe = store.subscribe(listener);
 
-  focused.update((s) => s);
+  store.update((s) => s);
 
   expect(listener).toHaveBeenCalledTimes(0);
 

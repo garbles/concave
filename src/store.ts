@@ -11,15 +11,15 @@ type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
 };
 
-export type FocusedStore<A> = {
+export type Store<A> = {
   getSnapshot(): A;
   subscribe(onStoreChange: Listener): Unsubscribe;
   update(updater: Updater<A>): void;
 };
 
-type Store<S> = <A>(focus: LensFocus<S, A>) => FocusedStore<A>;
+type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
-export const createStore = <S extends {}>(initialState: S): Store<S> => {
+export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
   const graph = new SubscriptionGraph();
   let snapshot = initialState;
 

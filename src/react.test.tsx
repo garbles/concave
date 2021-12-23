@@ -6,7 +6,7 @@ import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { ProxyLens } from "./proxy-lens";
-import { concave } from "./concave";
+import { concave } from "./react";
 import { ShouldUpdate } from "./should-update";
 
 type State = {

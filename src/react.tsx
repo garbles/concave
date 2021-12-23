@@ -2,18 +2,18 @@
 
 import React from "react";
 import { basicLens } from "./basic-lens";
-import { createStore } from "./store";
+import { createStoreFactory, Store } from "./store";
 import { keyPathToString } from "./key-path-to-string";
 import { initProxyLens } from "./proxy-lens";
 import { useStore } from "./use-store";
 
 export const concave = <S,>(initialState: S) => {
-  const store = createStore(initialState);
-  const root = store({ keyPath: [], lens: basicLens() });
+  const factory = createStoreFactory(initialState);
+  const store = factory({ keyPath: [], lens: basicLens() });
 
   const lens = initProxyLens<S>((focus) => {
     const debugValue = keyPathToString(focus.keyPath);
-    const focusedStore = store(focus);
+    const focusedStore = factory(focus);
 
     return function useLensState(shouldUpdate) {
       React.useDebugValue(debugValue);
@@ -21,7 +21,7 @@ export const concave = <S,>(initialState: S) => {
     };
   });
 
-  return [lens, root] as const;
+  return [lens, store] as const;
 };
 
 export const useConcave = <S,>(initialState: S) => React.useMemo(() => concave<S>(initialState), []);

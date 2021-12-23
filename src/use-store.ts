@@ -1,5 +1,5 @@
 import React from "react";
-import { FocusedStore } from "./store";
+import { Store } from "./store";
 import { ShouldUpdate, ShouldUpdateFunction, shouldUpdateToFunction } from "./should-update";
 
 type Nothing = typeof NOTHING;
@@ -7,7 +7,7 @@ type Nothing = typeof NOTHING;
 const NOTHING = Symbol();
 const SHOULD_ALWAYS_UPDATE = () => true;
 
-export const useStore = <A>(store: FocusedStore<A>, shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE) => {
+export const useStore = <A>(store: Store<A>, shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE) => {
   /**
    * Track the previously resolved state, starting with `Nothing`.
    */
