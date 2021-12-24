@@ -1,5 +1,6 @@
 import { initProxyLens, ProxyLens } from "./proxy-lens";
 import { ReactDevtools } from "./react-devtools";
+import { createStoreFactory } from "./store";
 
 type State = {
   a: {
@@ -27,34 +28,27 @@ const initialState = (): State => ({
   },
 });
 
-let globalState: State;
 let lens: ProxyLens<State>;
 
 beforeEach(() => {
-  globalState = initialState();
+  const factory = createStoreFactory(initialState());
 
-  lens = initProxyLens<State>((focus) => {
+  lens = initProxyLens<State>((store) => {
     /**
-     * Ignore keyPath and shouldUpdate here as their implementation
+     * Ignore debugValue and shouldUpdate here as their implementation
      * should be left up to the React case.
      */
-    return () =>
-      [
-        focus.lens.get(globalState),
-        (updater) => {
-          globalState = focus.lens.set(globalState, updater(focus.lens.get(globalState)));
-        },
-      ] as const;
-  });
+    return () => [store.getSnapshot(), store.update] as const;
+  }, factory);
 });
 
 describe("use", () => {
   test("creates a wrapper around a value", () => {
     const [state] = lens.use();
-    expect(state.toJSON()).toEqual(globalState);
+    expect(state.toJSON()).toEqual(lens.getStore().getSnapshot());
 
     const [bState] = lens.a.b.use();
-    expect(bState.toJSON()).toEqual(globalState.a.b);
+    expect(bState.toJSON()).toEqual(lens.getStore().getSnapshot().a.b);
   });
 
   test("can update state", () => {

@@ -23,15 +23,12 @@ export const concave = <S,>(initialState: S): [Lens<S>, Store<S>] => {
    * `lens.use()` could return something different (and decouple from React).
    */
 
-  const lens = initProxyLens<S>((focus) => {
-    const debugValue = keyPathToString(focus.keyPath);
-    const store = factory(focus);
-
+  const lens = initProxyLens<S>((store, debugValue) => {
     return function useLensState(shouldUpdate) {
       React.useDebugValue(debugValue);
       return useStore(store, shouldUpdate);
     };
-  });
+  }, factory);
 
   return [lens, root];
 };

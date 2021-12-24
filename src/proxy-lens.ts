@@ -1,3 +1,4 @@
+import { Store } from "./store";
 import { basicLens, BasicLens, prop } from "./basic-lens";
 import { isObject } from "./is-object";
 import { keyPathToString } from "./key-path-to-string";
@@ -20,8 +21,8 @@ type Updater<A> = (a: A) => A;
 type Update<A> = (updater: Updater<A>) => void;
 type UseLensState<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
-
-type CreateUseLensState<S> = <A>(focus: LensFocus<S, A>) => UseLensState<A>;
+type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
+type CreateUseLensState<S> = <A>(store: Store<A>, debugValue: string) => UseLensState<A>;
 
 type BaseProxyValue<A> = {
   toJSON(): A;
@@ -39,6 +40,11 @@ type ProxyValue<A> =
   never;
 
 type BaseProxyLens<A> = {
+  /**
+   * Fetches the store for current focus.
+   */
+  getStore(): Store<A>;
+
   /**
    * Collapses the `ProxyLens<A>` into a `ProxyValue<A>`.
    */
@@ -80,12 +86,8 @@ const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[k
   };
 };
 
-const createUseLensProxy = <S, A>(
-  createUseLensState: CreateUseLensState<S>,
-  focus: LensFocus<S, A>,
-  lens: ProxyLens<A>
-): UseLensProxy<A> => {
-  const useLensState = createUseLensState(focus);
+const createUseLensProxy = <S, A>(createUseLensState: CreateUseLensState<S>, lens: ProxyLens<A>): UseLensProxy<A> => {
+  const useLensState = createUseLensState(lens.getStore(), lens.$key);
 
   /**
    * Explicitly name the function here so that it shows up nicely in React Devtools.
@@ -188,13 +190,17 @@ const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
   return cached;
 };
 
-const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
+const proxyLens = <S, A>(
+  createUseLensState: CreateUseLensState<S>,
+  storeFactory: StoreFactory<S>,
+  focus: LensFocus<S, A>
+): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
   const keyCache: KeyCache = {};
 
   let use: unknown;
-  let toLens: unknown;
   let $key: unknown;
+  let getStore: unknown;
 
   const proxy = new Proxy(
     {},
@@ -214,13 +220,18 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
         }
 
         if (key === "use") {
-          use ??= createUseLensProxy(createUseLensState, focus, proxy);
+          use ??= createUseLensProxy(createUseLensState, proxy);
           return use;
+        }
+
+        if (key === "getStore") {
+          getStore ??= () => storeFactory(focus);
+          return getStore;
         }
 
         if (keyCache[key as keyof A] === undefined) {
           const nextFocus = focusProp(focus, key as keyof A);
-          const nextProxy = proxyLens(createUseLensState, nextFocus);
+          const nextProxy = proxyLens(createUseLensState, storeFactory, nextFocus);
           keyCache[key as keyof A] = nextProxy;
         }
 
@@ -228,11 +239,11 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
       },
 
       ownKeys(_target) {
-        return ["$key", "use", THROW_ON_COPY];
+        return ["$key", "use", "getStore", THROW_ON_COPY];
       },
 
       getOwnPropertyDescriptor(_target, key) {
-        if (key === "$key" || key === "use") {
+        if (key === "$key" || key === "use" || key === "getStore") {
           return {
             configurable: true,
             enumerable: true,
@@ -294,6 +305,9 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
   return proxy;
 };
 
-export const initProxyLens = <S>(createUseLensState: CreateUseLensState<S>): ProxyLens<S> => {
-  return proxyLens(createUseLensState, { lens: basicLens(), keyPath: [] });
+export const initProxyLens = <S>(
+  createUseLensState: CreateUseLensState<S>,
+  storeFactory: StoreFactory<S>
+): ProxyLens<S> => {
+  return proxyLens(createUseLensState, storeFactory, { lens: basicLens(), keyPath: [] });
 };
