@@ -2936,10 +2936,10 @@ ts-jest@^27.1.2:
     semver "7.x"
     yargs-parser "20.x"
 
-tsup@^5.11.7:
-  version "5.11.7"
-  resolved "https://registry.yarnpkg.com/tsup/-/tsup-5.11.7.tgz#860a75ee7d8f5d69e9b6c27c6686b35155494d90"
-  integrity sha512-p3NXi/0TahcvlB6CHgsPQZ179Qx0YYPEn4GEkirDbUT3CifPHO6RtZMmPW2v2IXmWsFMg5ZSqzHRnCGtMnjDWw==
+tsup@^5.11.8:
+  version "5.11.8"
+  resolved "https://registry.yarnpkg.com/tsup/-/tsup-5.11.8.tgz#fe1bd32e5a6c44c5c23bee23c1e9ea435d576326"
+  integrity sha512-MB348Kkip7NlHkISq/1YxNauj6qc8yiOL5mslUifLZtjBKEbSasaGdQRTRcHeM+cZ31sA+59XAnNyEIAjZajCQ==
   dependencies:
     bundle-require "^2.1.8"
     cac "^6.7.12"

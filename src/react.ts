@@ -9,11 +9,11 @@ import { Update } from "./types";
 type Nothing = typeof NOTHING;
 
 const NOTHING = Symbol();
-const SHOULD_ALWAYS_UPDATE = () => true;
+const SHOULD_ALWAYS_RETURN_NEXT = () => true;
 
 export function useLens<A>(
   proxy: ProxyLens<A>,
-  shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_UPDATE
+  shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_RETURN_NEXT
 ): [ProxyValue<A>, Update<A>] {
   React.useDebugValue(proxy.$key);
 
