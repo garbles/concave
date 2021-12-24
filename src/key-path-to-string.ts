@@ -1,4 +1,4 @@
-type Key = string | number | symbol;
+import { Key } from "./types";
 
 const cache = new WeakMap<Key[], string>();
 const IS_NUMBER_STRING = /^\d+$/;

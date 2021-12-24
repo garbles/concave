@@ -1,3 +1,5 @@
-export type { Lens } from "./react";
-export type { Store } from "./store";
-export { concave, useConcave } from "./react";
+import { ProxyLens } from "./proxy-lens";
+import { createLens } from "./create-lens";
+
+export type Lens<A> = ProxyLens<A>;
+export { createLens };

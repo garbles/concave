@@ -5,8 +5,10 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import { concave, Lens } from "./react";
+import { useLens } from "./react";
+import { createLens } from "./create-lens";
 import { ShouldUpdate } from "./should-update";
+import { ProxyLens } from "./proxy-lens";
 
 type State = {
   a: {
@@ -22,14 +24,15 @@ type State = {
 
 const initialState: State = { a: { b: { c: "cool" }, d: { e: 0 } }, f: [{ g: true }, { g: false }] };
 
-const [lens, handler] = concave<State>(initialState);
+const lens = createLens<State>(initialState);
 
 beforeEach(() => {
-  handler.update(() => initialState);
+  const store = lens.getStore();
+  store.update(() => initialState);
 });
 
-const App = (props: { state: Lens<State> }) => {
-  const [cState, setC] = props.state.a.b.c.use();
+const App = (props: { state: ProxyLens<State> }) => {
+  const [cState, setC] = useLens(props.state.a.b.c);
 
   const onClick = () => setC((c) => c + "!");
 
@@ -78,16 +81,16 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   let eRenderCount = 0;
   let bRenderCount = 0;
 
-  const E = React.memo((props: { state: Lens<State> }) => {
-    props.state.a.d.e.use();
+  const E = React.memo((props: { state: ProxyLens<State> }) => {
+    useLens(props.state.a.d.e);
 
     eRenderCount++;
 
     return <div />;
   });
 
-  const B = React.memo((props: { state: Lens<State> }) => {
-    const [b] = props.state.a.b.use();
+  const B = React.memo((props: { state: ProxyLens<State> }) => {
+    const [b] = useLens(props.state.a.b);
 
     bRenderCount++;
 
@@ -131,11 +134,11 @@ describe("should update", () => {
   let fRenderCount = 0;
 
   type GProps = {
-    state: Lens<{ g: boolean }>;
+    state: ProxyLens<{ g: boolean }>;
   };
 
   const G = React.memo((props: GProps) => {
-    const [g, updateG] = props.state.use();
+    const [g, updateG] = useLens(props.state);
 
     const onClick = () => updateG((prev) => ({ ...prev, g: !prev.g }));
 
@@ -149,7 +152,7 @@ describe("should update", () => {
   };
 
   const F = (props: FProps) => {
-    const [fState, updateF] = lens.f.use(props.shouldUpdate);
+    const [fState, updateF] = useLens(lens.f, props.shouldUpdate);
 
     const onClick = () => {
       updateF((f) => [...f, { g: true }]);
@@ -249,18 +252,12 @@ describe("should update", () => {
   );
 });
 
-test("does not throw error with stateful lens", () => {
-  const [otherLens] = concave(initialState);
-
-  expect(() => render(<App state={otherLens} />)).not.toThrow();
-});
-
 test("multiple hooks only trigger one re-render", () => {
   let renderCount = 0;
 
   const Test = () => {
-    lens.use();
-    const [c, setC] = lens.a.b.c.use();
+    useLens(lens);
+    const [c, setC] = useLens(lens.a.b.c);
 
     renderCount++;
 
@@ -282,7 +279,7 @@ test("multiple hooks only trigger one re-render", () => {
 
 test("renders to string", () => {
   const Test = () => {
-    const [state] = lens.use();
+    const [state] = useLens(lens);
 
     return <pre>{state.a.b.c}</pre>;
   };
@@ -296,8 +293,8 @@ test("ignores passing the same value", () => {
   let renderCount = 0;
 
   const Test = () => {
-    lens.use();
-    const [a, setA] = lens.a.use();
+    useLens(lens);
+    const [a, setA] = useLens(lens.a);
 
     renderCount++;
 

@@ -1,7 +1,5 @@
 import { shallowCopy } from "./shallow-copy";
 
-type Updater<A> = (a: A) => A;
-
 export type BasicLens<S, A> = {
   get(s: S): A;
   set(s: S, a: A): S;

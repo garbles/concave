@@ -1,9 +1,7 @@
 import { keyPathToString } from "./key-path-to-string";
+import { Key, Listener, Unsubscribe } from "./types";
 
-type Key = string | symbol | number;
 type NodeId = string;
-type Listener = () => void;
-type Unsubscribe = () => void;
 type SubscriptionNodeAncestor = { none: true } | { none: false; keyPath: Key[] };
 
 const id = keyPathToString;

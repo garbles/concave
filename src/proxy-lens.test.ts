@@ -1,6 +1,8 @@
-import { initProxyLens, ProxyLens } from "./proxy-lens";
+import { proxyLens, ProxyLens } from "./proxy-lens";
+import { ProxyValue, proxyValue } from "./proxy-value";
 import { ReactDevtools } from "./react-devtools";
 import { createStoreFactory } from "./store";
+import { Update } from "./types";
 
 type State = {
   a: {
@@ -33,38 +35,38 @@ let lens: ProxyLens<State>;
 beforeEach(() => {
   const factory = createStoreFactory(initialState());
 
-  lens = initProxyLens<State>((proxy) => {
-    /**
-     * Ignore debugValue and shouldUpdate here as their implementation
-     * should be left up to the React case.
-     */
-    return () => [proxy.getStore().getSnapshot(), proxy.getStore().update] as const;
-  }, factory);
+  lens = proxyLens<State, State>(factory);
 });
+
+const useLens = <A>(proxy: ProxyLens<A>): [ProxyValue<A>, Update<A>] => {
+  const store = proxy.getStore();
+
+  return [proxyValue(store.getSnapshot(), proxy), store.update];
+};
 
 describe("use", () => {
   test("creates a wrapper around a value", () => {
-    const [state] = lens.use();
+    const [state] = useLens(lens);
     expect(state.toJSON()).toEqual(lens.getStore().getSnapshot());
 
-    const [bState] = lens.a.b.use();
+    const [bState] = useLens(lens.a.b);
     expect(bState.toJSON()).toEqual(lens.getStore().getSnapshot().a.b);
   });
 
   test("can update state", () => {
-    const [bState, setB] = lens.a.b.use();
+    const [bState, setB] = useLens(lens.a.b);
 
     setB(() => ({ c: 500 }));
 
-    const [nextBState] = lens.a.b.use();
+    const [nextBState] = useLens(lens.a.b);
 
     expect(bState.toJSON()).not.toEqual(nextBState.toJSON());
     expect(nextBState).toMatchObject({ c: 500 });
   });
 
   test("does not expose `toLens` on primitive values", () => {
-    const [bState] = lens.a.b.use();
-    const [cState] = lens.a.b.c.use();
+    const [bState] = useLens(lens.a.b);
+    const [cState] = useLens(lens.a.b.c);
 
     expect(bState).toHaveProperty("toLens");
     expect(cState).not.toHaveProperty("toLens");
@@ -72,9 +74,9 @@ describe("use", () => {
 });
 
 test("always returns the same proxy value", () => {
-  const [state1, updateState] = lens.use();
-  const [state2] = lens.use();
-  const [aState] = lens.a.use();
+  const [state1, updateState] = useLens(lens);
+  const [state2] = useLens(lens);
+  const [aState] = useLens(lens.a);
 
   expect(state1).toBe(state2);
   expect(state1.toJSON).toBe(state2.toJSON);
@@ -82,7 +84,7 @@ test("always returns the same proxy value", () => {
 
   updateState((prev) => ({ ...prev }));
 
-  const [state3] = lens.use();
+  const [state3] = useLens(lens);
 
   expect(state3).not.toBe(state2);
   expect(state3.toJSON).not.toBe(state2.toJSON);
@@ -91,13 +93,13 @@ test("always returns the same proxy value", () => {
 
 describe("returning the same proxy lens", () => {
   test("returns the same proxy lens when toggled", () => {
-    const [state] = lens.use();
+    const [state] = useLens(lens);
 
     expect(state.toLens()).toBe(lens);
   });
 
   test("from within lists of things", () => {
-    const [fState] = lens.a.f.use();
+    const [fState] = useLens(lens.a.f);
 
     const first = fState[0];
 
@@ -105,13 +107,13 @@ describe("returning the same proxy lens", () => {
   });
 
   test("when a list is copied but the members stay the same", () => {
-    const [fState, setF] = lens.a.f.use();
+    const [fState, setF] = useLens(lens.a.f);
     const f1 = fState[0];
 
     // problem here is we return the wrapped value instead of the next one and so they don't wrap
     setF((f) => [...f, { g: true }]);
 
-    const [nextFState] = lens.a.f.use();
+    const [nextFState] = useLens(lens.a.f);
     const nextF1 = nextFState[0];
 
     expect(fState.length + 1).toEqual(nextFState.length);
@@ -121,14 +123,14 @@ describe("returning the same proxy lens", () => {
   });
 
   test("when an object is copied by the members stay the same", () => {
-    const [bState, setBState] = lens.a.b.use();
-    const [dState] = lens.a.d.use();
+    const [bState, setBState] = useLens(lens.a.b);
+    const [dState] = useLens(lens.a.d);
 
     const nextBState = { c: 5000 };
 
     setBState(() => ({ c: 5000 }));
 
-    const [aState] = lens.a.use();
+    const [aState] = useLens(lens.a);
 
     expect(aState.b.toJSON()).toEqual(nextBState);
     expect(aState.d).toBe(dState);
@@ -139,7 +141,7 @@ describe("returning the same proxy lens", () => {
   });
 
   test("checking for errors when making copies", () => {
-    const [obj] = lens.use();
+    const [obj] = useLens(lens);
 
     expect(() => ({ ...obj })).not.toThrow();
     expect(() => Object.assign({}, obj)).not.toThrow();
@@ -169,7 +171,7 @@ describe("inside React Devtools", () => {
 });
 
 test("making a copy of a ProxyValue preserves the same attributes", () => {
-  const [obj] = lens.use();
+  const [obj] = useLens(lens);
   const copy = { ...obj };
 
   expect(copy.toLens()).toBe(lens);
@@ -178,7 +180,7 @@ test("making a copy of a ProxyValue preserves the same attributes", () => {
 });
 
 test("making a copy, dot-navigating, and then returning to a lens works", () => {
-  const [obj] = lens.use();
+  const [obj] = useLens(lens);
   const copy = { ...obj };
 
   const b = copy.a.b;

@@ -1,54 +1,21 @@
-import { Store } from "./store";
 import { basicLens, BasicLens, prop } from "./basic-lens";
-import { isObject } from "./is-object";
 import { keyPathToString } from "./key-path-to-string";
 import { ReactDevtools } from "./react-devtools";
-import { ShouldUpdate } from "./should-update";
-
-type Key = string | number | symbol;
-type AnyObject = { [key: string | number | symbol]: JSON };
-type AnyArray = JSON[];
-type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
-type JSON = AnyArray | AnyObject | AnyPrimitive;
-type Proxyable = AnyArray | AnyObject;
+import { Store } from "./store";
+import { AnyArray, AnyObject, AnyPrimitive, Key } from "./types";
 
 type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
   keyPath: Key[];
 };
 
-type Updater<A> = (a: A) => A;
-type Update<A> = (updater: Updater<A>) => void;
-type UseLensState<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
-type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
-type CreateUseLensState<S> = <A>(proxy: ProxyLens<A>) => UseLensState<A>;
-
-type BaseProxyValue<A> = {
-  toJSON(): A;
-  toLens(): ProxyLens<A>;
-};
-
-type ArrayProxyValue<A extends AnyArray> = BaseProxyValue<A> & Array<ProxyValue<A[number]>>;
-type ObjectProxyValue<A extends AnyObject> = BaseProxyValue<A> & { [K in keyof A]: ProxyValue<A[K]> };
-
-// prettier-ignore
-type ProxyValue<A> =
-  A extends AnyArray ? ArrayProxyValue<A> :
-  A extends AnyObject ? ObjectProxyValue<A> :
-  A extends AnyPrimitive ? A :
-  never;
 
 type BaseProxyLens<A> = {
   /**
    * Fetches the store for current focus.
    */
   getStore(): Store<A>;
-
-  /**
-   * Collapses the `ProxyLens<A>` into a `ProxyValue<A>`.
-   */
-  use: UseLensProxy<A>;
   /**
    * A unique key for cases when you need a key. e.g. A React list.
    *
@@ -77,8 +44,6 @@ export type ProxyLens<A> =
 
 const THROW_ON_COPY = Symbol();
 
-const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
-
 const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[keyof A]> => {
   return {
     keyPath: [...focus.keyPath, key],
@@ -86,119 +51,13 @@ const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[k
   };
 };
 
-const createUseLensProxy = <S, A>(createUseLensState: CreateUseLensState<S>, lens: ProxyLens<A>): UseLensProxy<A> => {
-  const useLensState = createUseLensState(lens);
-
-  /**
-   * Explicitly name the function here so that it shows up nicely in React Devtools.
-   */
-  return function useLens(shouldUpdate) {
-    const [state, setState] = useLensState(shouldUpdate);
-    const next = proxyValue(state, lens);
-
-    return [next, setState];
-  };
-};
-
-const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {}; toLens?(): ProxyLens<{}> }> = {
-  get(target, key) {
-    if (key === "toJSON") {
-      target.toJSON ??= () => target.data;
-      return target.toJSON;
-    }
-
-    if (key === "toLens") {
-      target.toLens ??= () => target.lens;
-      return target.toLens;
-    }
-
-    const nextData = target.data[key as keyof typeof target.data];
-    const nextLens = (target.lens as any)[key as keyof typeof target.lens];
-
-    return proxyValue<{}>(nextData, nextLens);
-  },
-
-  ownKeys(target) {
-    return Reflect.ownKeys(target.data).concat(["toLens", "toJSON"]);
-  },
-
-  getOwnPropertyDescriptor(target, key) {
-    /**
-     * If the key is one of the special ProxyValue keys,
-     * set the property descriptor to a custom value.
-     */
-    if (key === "toLens" || key === "toJSON") {
-      return {
-        configurable: true,
-        enumerable: true,
-        writable: false,
-        value: target[key],
-      };
-    }
-
-    const desc = Object.getOwnPropertyDescriptor(target.data, key);
-
-    /**
-     * Now bail if the descriptor is `undefined`. This could only
-     * occur if the key is not `keyof A`.
-     */
-    if (desc === undefined) {
-      return;
-    }
-
-    return {
-      writable: desc.writable,
-      enumerable: desc.enumerable,
-      configurable: desc.configurable,
-      value: target.data[key as keyof typeof target.data],
-    };
-  },
-  has(target, key) {
-    return key in target.data;
-  },
-  getPrototypeOf() {
-    return null;
-  },
-  preventExtensions() {
-    return true;
-  },
-  isExtensible() {
-    return false;
-  },
-  set() {
-    throw new Error("Cannot set property on ProxyValue");
-  },
-  deleteProperty() {
-    throw new Error("Cannot delete property on ProxyValue");
-  },
-};
-
-const valueCache = new WeakMap<{}, ProxyValue<any>>();
-
-const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
-  if (!isProxyable(data)) {
-    return data as ProxyValue<A>;
-  }
-
-  let cached = valueCache.get(data);
-
-  if (!cached) {
-    cached = new Proxy({ data, lens } as any, proxyValueHandler);
-    valueCache.set(data, cached);
-  }
-
-  return cached;
-};
-
-const proxyLens = <S, A>(
-  createUseLensState: CreateUseLensState<S>,
+export const proxyLens = <S, A>(
   storeFactory: StoreFactory<S>,
-  focus: LensFocus<S, A>
+  focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
 ): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
   const keyCache: KeyCache = {};
 
-  let use: unknown;
   let $key: unknown;
   let getStore: unknown;
 
@@ -219,11 +78,6 @@ const proxyLens = <S, A>(
           return $key;
         }
 
-        if (key === "use") {
-          use ??= createUseLensProxy(createUseLensState, proxy);
-          return use;
-        }
-
         if (key === "getStore") {
           getStore ??= () => storeFactory(focus);
           return getStore;
@@ -231,7 +85,7 @@ const proxyLens = <S, A>(
 
         if (keyCache[key as keyof A] === undefined) {
           const nextFocus = focusProp(focus, key as keyof A);
-          const nextProxy = proxyLens(createUseLensState, storeFactory, nextFocus);
+          const nextProxy = proxyLens(storeFactory, nextFocus);
           keyCache[key as keyof A] = nextProxy;
         }
 
@@ -303,11 +157,4 @@ const proxyLens = <S, A>(
   ) as ProxyLens<A>;
 
   return proxy;
-};
-
-export const initProxyLens = <S>(
-  createUseLensState: CreateUseLensState<S>,
-  storeFactory: StoreFactory<S>
-): ProxyLens<S> => {
-  return proxyLens(createUseLensState, storeFactory, { lens: basicLens(), keyPath: [] });
 };

@@ -1,15 +1,13 @@
 import { BasicLens } from "./basic-lens";
 import { SubscriptionGraph } from "./subscription-graph";
-
-type Key = string | number | symbol;
-type Listener = () => void;
-type Unsubscribe = () => void;
-type Updater<A> = (a: A) => A;
+import { Key, Listener, Unsubscribe, Updater } from "./types";
 
 type LensFocus<S, A> = {
   keyPath: Key[];
   lens: BasicLens<S, A>;
 };
+
+type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
 export type Store<A> = {
   getSnapshot(): A;
@@ -17,23 +15,12 @@ export type Store<A> = {
   update(updater: Updater<A>): void;
 };
 
-type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
-
 export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
   const graph = new SubscriptionGraph();
-  const cache = new WeakMap<LensFocus<{}, any>, Store<any>>();
   let snapshot = initialState;
 
-  return (focus) => {
-    let cached = cache.get(focus);
-
-    if (cached) {
-      return cached;
-    }
-
-    const { keyPath, lens } = focus;
-
-    cached = {
+  return ({ keyPath, lens }) => {
+    return {
       getSnapshot() {
         return lens.get(snapshot);
       },
@@ -55,9 +42,5 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
         graph.notify(keyPath);
       },
     };
-
-    cache.set(focus, cached);
-
-    return cached;
   };
 };
