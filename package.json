@@ -1,6 +1,6 @@
 {
   "name": "concave",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "A Lens-like interface for state management in React",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
