@@ -11,6 +11,8 @@ type Nothing = typeof NOTHING;
 const NOTHING = Symbol();
 const SHOULD_ALWAYS_RETURN_NEXT = () => true;
 
+export type Lens<A> = ProxyLens<A>;
+
 export function useLens<A>(
   proxy: ProxyLens<A>,
   shouldUpdate: ShouldUpdate<A> = SHOULD_ALWAYS_RETURN_NEXT
