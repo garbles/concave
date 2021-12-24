@@ -1,6 +1,6 @@
 {
   "name": "concave",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "A Lens-like interface for state management in React",
   "main": "dist/create-lens.js",
   "module": "dist/create-lens.mjs",
