@@ -179,6 +179,7 @@ test("making a copy of a ProxyValue preserves the same attributes", () => {
   const copy = { ...obj };
 
   expect(copy.toLens()).toBe(lens);
+  expect(copy.toJSON()).toEqual(JSON.parse(JSON.stringify(copy)));
   expect(copy).toEqual(obj);
 });
 

@@ -56,10 +56,6 @@ type BaseProxyLens<A> = {
    * });
    */
   $key: string;
-  /**
-   * Internal. Only called by `ProxyValue#toLens`.
-   */
-  [WRAP_IN_FUNC](): ProxyLens<A>;
 };
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
@@ -73,7 +69,6 @@ export type ProxyLens<A> =
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
 
-const WRAP_IN_FUNC = Symbol();
 const THROW_ON_COPY = Symbol();
 
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
@@ -103,7 +98,7 @@ const createUseLensProxy = <S, A>(
   };
 };
 
-const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {} }> = {
+const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {}; toLens?(): ProxyLens<{}> }> = {
   get(target, key) {
     if (key === "toJSON") {
       target.toJSON ??= () => target.data;
@@ -111,7 +106,8 @@ const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?()
     }
 
     if (key === "toLens") {
-      return target.lens[WRAP_IN_FUNC];
+      target.toLens ??= () => target.lens;
+      return target.toLens;
     }
 
     const nextData = target.data[key as keyof typeof target.data];
@@ -126,42 +122,33 @@ const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?()
 
   getOwnPropertyDescriptor(target, key) {
     /**
-     * Get the property descriptor for this `key`.
-     */
-    let desc: PropertyDescriptor | undefined;
-
-    /**
      * If the key is one of the special ProxyValue keys,
      * set the property descriptor to a custom value.
      */
     if (key === "toLens" || key === "toJSON") {
-      desc = {
+      return {
         configurable: true,
         enumerable: true,
         writable: false,
+        value: target[key],
       };
-      /**
-       * Otherwise look it up on the target.
-       */
-    } else {
-      desc = Object.getOwnPropertyDescriptor(target.data, key);
     }
+
+    const desc = Object.getOwnPropertyDescriptor(target.data, key);
 
     /**
      * Now bail if the descriptor is `undefined`. This could only
-     * occur if the key is not `'toLens' | 'toJSON' | keyof A`.
+     * occur if the key is not `keyof A`.
      */
     if (desc === undefined) {
       return;
     }
 
-    const value = target.data[key as keyof typeof target.data];
-
     return {
       writable: desc.writable,
       enumerable: desc.enumerable,
       configurable: desc.configurable,
-      value,
+      value: target.data[key as keyof typeof target.data],
     };
   },
   has(target, key) {
@@ -224,16 +211,6 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
         if (key === "$key") {
           $key ??= keyPathToString(focus.keyPath);
           return $key;
-        }
-
-        /**
-         * This is attached to the proxy because the proxy never changes.
-         * So even if the underlying data changes, the `ProxyValue` wrapping
-         * it will always refer to the same `toLens` function.
-         */
-        if (key === WRAP_IN_FUNC) {
-          toLens ??= () => proxy;
-          return toLens;
         }
 
         if (key === "use") {
