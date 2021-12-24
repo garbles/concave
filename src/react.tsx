@@ -7,7 +7,7 @@ import { initProxyLens, ProxyLens } from "./proxy-lens";
 import { createStoreFactory, Store } from "./store";
 import { useStore } from "./use-store";
 
-export type Lens<A> = Omit<ProxyLens<A>, symbol>;
+export type Lens<A> = ProxyLens<A>;
 
 export const concave = <S,>(initialState: S): [Lens<S>, Store<S>] => {
   const factory = createStoreFactory(initialState);
