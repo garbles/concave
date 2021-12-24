@@ -33,12 +33,12 @@ let lens: ProxyLens<State>;
 beforeEach(() => {
   const factory = createStoreFactory(initialState());
 
-  lens = initProxyLens<State>((store) => {
+  lens = initProxyLens<State>((proxy) => {
     /**
      * Ignore debugValue and shouldUpdate here as their implementation
      * should be left up to the React case.
      */
-    return () => [store.getSnapshot(), store.update] as const;
+    return () => [proxy.getStore().getSnapshot(), proxy.getStore().update] as const;
   }, factory);
 });
 

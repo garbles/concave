@@ -22,7 +22,7 @@ type Update<A> = (updater: Updater<A>) => void;
 type UseLensState<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [A, Update<A>];
 type UseLensProxy<A> = (shouldUpdate?: ShouldUpdate<A>) => readonly [ProxyValue<A>, Update<A>];
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
-type CreateUseLensState<S> = <A>(store: Store<A>, debugValue: string) => UseLensState<A>;
+type CreateUseLensState<S> = <A>(proxy: ProxyLens<A>) => UseLensState<A>;
 
 type BaseProxyValue<A> = {
   toJSON(): A;
@@ -87,7 +87,7 @@ const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[k
 };
 
 const createUseLensProxy = <S, A>(createUseLensState: CreateUseLensState<S>, lens: ProxyLens<A>): UseLensProxy<A> => {
-  const useLensState = createUseLensState(lens.getStore(), lens.$key);
+  const useLensState = createUseLensState(lens);
 
   /**
    * Explicitly name the function here so that it shows up nicely in React Devtools.

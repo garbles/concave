@@ -21,10 +21,10 @@ export const concave = <S,>(initialState: S): Lens<S> => {
    */
 
   const lens = initProxyLens<S>(
-    (store, debugValue) =>
+    (proxy) =>
       function useLensState(shouldUpdate) {
-        React.useDebugValue(debugValue);
-        return useStore(store, shouldUpdate);
+        React.useDebugValue(proxy.$key);
+        return useStore(proxy.getStore(), shouldUpdate);
       },
     factory
   );
