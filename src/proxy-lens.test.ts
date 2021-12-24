@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 
 describe("use", () => {
-  test("creates a wrapper around a lens", () => {
+  test("creates a wrapper around a value", () => {
     const [state] = lens.use();
     expect(state.toJSON()).toEqual(globalState);
 
@@ -75,6 +75,24 @@ describe("use", () => {
     expect(bState).toHaveProperty("toLens");
     expect(cState).not.toHaveProperty("toLens");
   });
+});
+
+test("always returns the same proxy value", () => {
+  const [state1, updateState] = lens.use();
+  const [state2] = lens.use();
+  const [aState] = lens.a.use();
+
+  expect(state1).toBe(state2);
+  expect(state1.toJSON).toBe(state2.toJSON);
+  expect(state1.a).toBe(aState);
+
+  updateState((prev) => ({ ...prev }));
+
+  const [state3] = lens.use();
+
+  expect(state3).not.toBe(state2);
+  expect(state3.toJSON).not.toBe(state2.toJSON);
+  expect(state3.a).toBe(aState);
 });
 
 describe("returning the same proxy lens", () => {

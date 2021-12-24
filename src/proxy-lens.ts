@@ -103,100 +103,102 @@ const createUseLensProxy = <S, A>(
   };
 };
 
-const valueCache = new WeakMap<{}, ProxyValue<unknown>>();
+const valueTraps: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {} }> = {
+  get(target, key) {
+    if (key === "toJSON") {
+      target.toJSON ??= () => target.data;
+      return target.toJSON;
+    }
 
-const proxyValue = <A>(obj: A, lens: ProxyLens<A>): ProxyValue<A> => {
-  if (!isProxyable(obj)) {
-    return obj as ProxyValue<A>;
-  }
+    if (key === "toLens") {
+      return target.lens[WRAP_IN_FUNC];
+    }
 
-  const cached: ProxyValue<A> | undefined = valueCache.get(obj);
+    const nextData = target.data[key as keyof typeof target.data];
+    const nextLens = (target.lens as any)[key as keyof typeof target.lens];
 
-  if (cached) {
-    return cached;
-  }
+    return proxyValue<{}>(nextData, nextLens);
+  },
 
-  let toJSON: unknown;
+  ownKeys(target) {
+    return Reflect.ownKeys(target.data).concat(["toLens", "toJSON"]);
+  },
 
-  const proxy = new Proxy(obj, {
-    get(target, key) {
-      if (key === "toJSON") {
-        toJSON ??= () => target;
-        return toJSON;
-      }
+  getOwnPropertyDescriptor(target, key) {
+    /**
+     * Get the property descriptor for this `key`.
+     */
+    let desc: PropertyDescriptor | undefined;
 
-      if (key === "toLens") {
-        return lens[WRAP_IN_FUNC];
-      }
-
-      const nextValue = target[key as keyof A];
-      const nextLens = (lens as any)[key];
-
-      return proxyValue(nextValue, nextLens);
-    },
-
-    ownKeys(target) {
-      return Reflect.ownKeys(target).concat(["toLens", "toJSON"]);
-    },
-
-    getOwnPropertyDescriptor(target, key) {
-      /**
-       * Get the property descriptor for this `key`.
-       */
-      let desc: PropertyDescriptor | undefined;
-
-      /**
-       * If the key is one of the special ProxyValue keys,
-       * set the property descriptor to a custom value.
-       */
-      if (key === "toLens" || key === "toJSON") {
-        desc = {
-          configurable: true,
-          enumerable: true,
-          writable: false,
-        };
-        /**
-         * Otherwise look it up on the target.
-         */
-      } else {
-        desc = Object.getOwnPropertyDescriptor(target, key);
-      }
-
-      /**
-       * Now bail if the descriptor is `undefined`. This could only
-       * occur if the key is not `'toLens' | 'toJSON' | keyof A`.
-       */
-      if (desc === undefined) {
-        return;
-      }
-
-      const value = target[key as keyof A];
-
-      return {
-        writable: desc.writable,
-        enumerable: desc.enumerable,
-        configurable: desc.configurable,
-        value,
+    /**
+     * If the key is one of the special ProxyValue keys,
+     * set the property descriptor to a custom value.
+     */
+    if (key === "toLens" || key === "toJSON") {
+      desc = {
+        configurable: true,
+        enumerable: true,
+        writable: false,
       };
-    },
+      /**
+       * Otherwise look it up on the target.
+       */
+    } else {
+      desc = Object.getOwnPropertyDescriptor(target.data, key);
+    }
 
-    preventExtensions() {
-      return true;
-    },
-    isExtensible() {
-      return false;
-    },
-    set() {
-      throw new Error("Cannot set property on ProxyValue");
-    },
-    deleteProperty() {
-      throw new Error("Cannot delete property on ProxyValue");
-    },
-  }) as ProxyValue<A>;
+    /**
+     * Now bail if the descriptor is `undefined`. This could only
+     * occur if the key is not `'toLens' | 'toJSON' | keyof A`.
+     */
+    if (desc === undefined) {
+      return;
+    }
 
-  valueCache.set(obj, proxy as ProxyValue<unknown>);
+    const value = target.data[key as keyof typeof target.data];
 
-  return proxy;
+    return {
+      writable: desc.writable,
+      enumerable: desc.enumerable,
+      configurable: desc.configurable,
+      value,
+    };
+  },
+  has(target, key) {
+    return key in target.data;
+  },
+  getPrototypeOf() {
+    return null;
+  },
+  preventExtensions() {
+    return true;
+  },
+  isExtensible() {
+    return false;
+  },
+  set() {
+    throw new Error("Cannot set property on ProxyValue");
+  },
+  deleteProperty() {
+    throw new Error("Cannot delete property on ProxyValue");
+  },
+};
+
+const valueCache = new WeakMap<{}, ProxyValue<any>>();
+
+const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
+  if (!isProxyable(data)) {
+    return data as ProxyValue<A>;
+  }
+
+  let cached = valueCache.get(data);
+
+  if (!cached) {
+    cached = new Proxy({ data, lens } as any, valueTraps);
+    valueCache.set(data, cached);
+  }
+
+  return cached;
 };
 
 const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
