@@ -1,6 +1,7 @@
 /// <reference types="react/next" />
 
 import React from "react";
+import { createLens } from "./create-lens";
 import { ProxyLens } from "./proxy-lens";
 import { proxyValue, ProxyValue } from "./proxy-value";
 import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
@@ -78,4 +79,8 @@ export function useLens<A>(
   const value = React.useMemo(() => proxyValue(state, proxy), [state, proxy]);
 
   return [value, setState];
+}
+
+export function useCreateLens<S>(initialState: S) {
+  return React.useMemo(() => createLens(initialState), []);
 }
