@@ -21,10 +21,19 @@ type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
 export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
   const graph = new SubscriptionGraph();
+  const cache = new WeakMap<LensFocus<{}, any>, Store<any>>();
   let snapshot = initialState;
 
-  return ({ keyPath, lens }) => {
-    return {
+  return (focus) => {
+    let cached = cache.get(focus);
+
+    if (cached) {
+      return cached;
+    }
+
+    const { keyPath, lens } = focus;
+
+    cached = {
       getSnapshot() {
         return lens.get(snapshot);
       },
@@ -46,5 +55,9 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
         graph.notify(keyPath);
       },
     };
+
+    cache.set(focus, cached);
+
+    return cached;
   };
 };
