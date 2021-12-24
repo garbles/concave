@@ -1,7 +1,7 @@
 {
   "name": "concave",
   "version": "0.0.19",
-  "description": "A Lens-like interface for state management in React",
+  "description": "A Lens-like interface for state management",
   "main": "dist/create-lens.js",
   "module": "dist/create-lens.mjs",
   "types": "dist/create-lens.d.ts",
@@ -29,6 +29,14 @@
     "dist"
   ],
   "author": "Gabe Scholz",
+  "bugs": {
+    "url": "https://github.com/garbles/concave/issues"
+  },
+  "homepage": "https://github.com/garbles/concave",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/garbles/concave.git"
+  },
   "license": "MIT",
   "sideEffects": false,
   "keywords": [
@@ -37,16 +45,13 @@
     "optics",
     "state",
     "state-management",
-    "store"
+    "store",
+    "redux"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/garbles/concave.git"
-  },
   "scripts": {
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "build": "tsup src/create-lens.ts src/react.ts",
+    "build": "tsup",
     "prepublish": "yarn test && yarn typecheck && yarn build"
   },
   "dependencies": {},
