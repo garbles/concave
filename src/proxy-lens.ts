@@ -103,7 +103,7 @@ const createUseLensProxy = <S, A>(
   };
 };
 
-const valueTraps: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {} }> = {
+const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {} }> = {
   get(target, key) {
     if (key === "toJSON") {
       target.toJSON ??= () => target.data;
@@ -194,7 +194,7 @@ const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
   let cached = valueCache.get(data);
 
   if (!cached) {
-    cached = new Proxy({ data, lens } as any, valueTraps);
+    cached = new Proxy({ data, lens } as any, proxyValueHandler);
     valueCache.set(data, cached);
   }
 
@@ -202,8 +202,8 @@ const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
 };
 
 const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
-  type LensCache = { [K in keyof A]?: ProxyLens<A[K]> };
-  const cache: LensCache = {};
+  type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
+  const keyCache: KeyCache = {};
 
   let use: unknown;
   let toLens: unknown;
@@ -241,13 +241,13 @@ const proxyLens = <S, A>(createUseLensState: CreateUseLensState<S>, focus: LensF
           return use;
         }
 
-        if (cache[key as keyof A] === undefined) {
+        if (keyCache[key as keyof A] === undefined) {
           const nextFocus = focusProp(focus, key as keyof A);
           const nextProxy = proxyLens(createUseLensState, nextFocus);
-          cache[key as keyof A] = nextProxy;
+          keyCache[key as keyof A] = nextProxy;
         }
 
-        return cache[key as keyof A];
+        return keyCache[key as keyof A];
       },
 
       ownKeys(_target) {
