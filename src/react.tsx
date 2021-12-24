@@ -1,17 +1,14 @@
 /// <reference types="react/next" />
 
 import React from "react";
-import { basicLens } from "./basic-lens";
-import { keyPathToString } from "./key-path-to-string";
 import { initProxyLens, ProxyLens } from "./proxy-lens";
-import { createStoreFactory, Store } from "./store";
+import { createStoreFactory } from "./store";
 import { useStore } from "./use-store";
 
 export type Lens<A> = ProxyLens<A>;
 
-export const concave = <S,>(initialState: S): [Lens<S>, Store<S>] => {
+export const concave = <S,>(initialState: S): Lens<S> => {
   const factory = createStoreFactory(initialState);
-  const root = factory({ keyPath: [], lens: basicLens() });
 
   /**
    * Can't really generalize this without higher-kinded types :(.
@@ -23,14 +20,16 @@ export const concave = <S,>(initialState: S): [Lens<S>, Store<S>] => {
    * `lens.use()` could return something different (and decouple from React).
    */
 
-  const lens = initProxyLens<S>((store, debugValue) => {
-    return function useLensState(shouldUpdate) {
-      React.useDebugValue(debugValue);
-      return useStore(store, shouldUpdate);
-    };
-  }, factory);
+  const lens = initProxyLens<S>(
+    (store, debugValue) =>
+      function useLensState(shouldUpdate) {
+        React.useDebugValue(debugValue);
+        return useStore(store, shouldUpdate);
+      },
+    factory
+  );
 
-  return [lens, root];
+  return lens;
 };
 
 export const useConcave = <S,>(initialState: S) => React.useMemo(() => concave<S>(initialState), []);
