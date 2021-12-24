@@ -20,7 +20,7 @@ type BaseProxyLens<A> = {
    * A unique key for cases when you need a key. e.g. A React list.
    *
    * @example
-   * const [list] = state.use();
+   * const [list] = useLens(state);
    *
    * list.map(value => {
    *   const lens = value.toLens();
@@ -93,11 +93,11 @@ export const proxyLens = <S, A>(
       },
 
       ownKeys(_target) {
-        return ["$key", "use", "getStore", THROW_ON_COPY];
+        return ["$key", "getStore", THROW_ON_COPY];
       },
 
       getOwnPropertyDescriptor(_target, key) {
-        if (key === "$key" || key === "use" || key === "getStore") {
+        if (key === "$key" || key === "getStore") {
           return {
             configurable: true,
             enumerable: true,
