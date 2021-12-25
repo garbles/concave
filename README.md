@@ -77,7 +77,79 @@ export const setUserName = (state: State, name: string) => {
 
 Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
 
-_A Lens is essentially a "getter" and "setter" pair that are always "refined" at the same time._
+_A lens is a "getter" and "setter" pair that are "refined" together._
+
+Lets write a lens for the entire state.
+
+```ts
+const stateLens: BasicLens<State, State> = {
+  get(state: State): State {
+    return state;
+  },
+
+  set(prev: State, next: State): State {
+    return next;
+  },
+};
+```
+
+This looks a little suspect, but now lets "refine" the lens for the user.
+
+```ts
+const userLens: BasicLens<State, User> = {
+  get(state: State): User {
+    return stateLens.get(state).user;
+  },
+
+  set(state: State, next: User): State {
+    const prev = stateLens.get(state);
+
+    return stateLens.set(state, {
+      ...prev,
+      user,
+    });
+  },
+};
+```
+
+And finally for the user name.
+
+```ts
+const userNameLens: BasicLens<State, string> = {
+  get(state: State) {
+    return userLens.get(state).name;
+  },
+
+  set(state: State, name: string): State {
+    const user = userLens.get(state);
+
+    return userLens.set(state, {
+      ...user,
+      name,
+    });
+  },
+};
+```
+
+These look nearly identical to the getter/setter examples above. Notice that lenses operate on the entire application state while refinements make them "focused" on particular, small pieces of data (which is why they are called lenses). They are typed using two generic values: `BasicLens<WholeState, RefinedState>` where the `WholeState` remains the same through all refinements.
+
+It is so common to make property (`keyof RefinedState`) refinements, that we can just write a helper function to walk an object.
+
+```ts
+prop<WholeState, RefinedState, Key extends keyof RefinedState>(
+  lens: BasicLens<WholeState, RefinedState>,
+  key: Key
+): BasicLens<WholeState, RefinedState[Key]>
+```
+
+And so instead, you might say,
+
+```ts
+const userLens = prop(stateLens, "user");
+const userNameLens = prop(userLens, "name");
+```
+
+Concave, uses [Proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy)
 
 ## Installation
 
