@@ -142,14 +142,14 @@ prop<WholeState, RefinedState, Key extends keyof RefinedState>(
 ): BasicLens<WholeState, RefinedState[Key]>
 ```
 
-And so instead, you might say,
+And so instead, you might say.
 
 ```ts
 const userLens = prop(stateLens, "user");
 const userNameLens = prop(userLens, "name");
 ```
 
-Concave, uses [Proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy)
+Concave, takes this one step further with [Proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy).
 
 ## Installation
 
