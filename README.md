@@ -43,7 +43,7 @@ render(<App state={lens} />);
 
 ## A brief introduction to lenses for React/Redux developers
 
-If you have built React applications with Redux then you are probably familiar with [selectors](https://redux.js.org/usage/deriving-data-selectors). A selector is a "getter" for the entire application state.
+If you have built React applications with Redux then you are probably familiar with [selectors](https://redux.js.org/usage/deriving-data-selectors). A selector is a "getter" from the monolithic application state meant to obfuscate the shape of that state from the rest of the application.
 
 ```ts
 import { State, UserState } from "./state";
@@ -52,6 +52,32 @@ export const getUser = (state: State) => state.user;
 
 export const getUserName = (state: State) => getUser(state).name;
 ```
+
+The second "getter", `getUserName`, is a "refinement" on `getUser`. It gives us a way to write `getUserName` in terms of the _entire_ application state without revealing it. That is, `getUserName` only needs to know the shape of `User`, while `getUser` can get it from the parent. And so on...
+
+Now instead of a dispatching actions, consider how it would look to update the application state with a series of "setters".
+
+```ts
+export const setUser = (state: State, user: User) => {
+  return {
+    ...state,
+    user,
+  };
+};
+
+export const setUserName = (state: State, name: string) => {
+  const user = getUser(state);
+
+  return setUser(state, {
+    ...user,
+    name,
+  });
+};
+```
+
+Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
+
+_A Lens is essentially a "getter" and "setter" pair that are always "refined" at the same time._
 
 ## Installation
 
