@@ -1,44 +1,44 @@
-# 🧐 Concave
+<p align="center">
+  <img src="./image.png" />
+</p>
 
-A Lens-like interface for state management in React.
+Lens-like state management (for React).
 
-## Overview
+# Overview
 
-## Introduction to Lenses for React developers
+# Introduction to Lenses for React developers
 
-## Installation
+# Installation
 
-## API
+# API
 
-### `createLens<S>(initialState: S): Lens<S>`
+## `createLens<S>(initialState: S): Lens<S>`
 
-### `Lens<A>`
+## `Lens<A>`
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around `A`
 
-#### `Lens<A>.getStore(): Store<A>`
+## `Store<A>`
 
-#### `Lens<A>.$key`
+# Use with React
 
-#### `Store<A>`
+## `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
 
-## Use with React
+## `useCreateLens<A>(initialState: S): Lens<S>`
 
-### `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
+# Examples
 
-### `useCreateLens<A>(initialState: S): Lens<S>`
+# Testing
 
-## Examples
-
-## Testing
-
-## Performance tips
+# Performance
 
 1. Use shouldUpdate.
 
 2. If do use a shouldUpdate argument for the lens, you can either memoize it with `React.useMemo` or `React.useCallback` or store it outside of the component.
 
 3. Memoize every component with `React.memo` foward lenses as props rather than globals.
+
+<!--
 
 ## Example
 
@@ -91,7 +91,7 @@ export const Root = (props: Props) => {
 
 And then the underlying data it can be accessed by collapsing the lens into a React hook with `use`.
 
-```tsx
+````tsx
 // Profile.tsx
 import { Lens } from "concave";
 
@@ -110,4 +110,8 @@ const Profile = (props: Props) => {
     </>
   );
 };
+``` -->
+
+```
+
 ```
