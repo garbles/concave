@@ -81,7 +81,9 @@ Integrates a `Lens<A>` into the React life-cycle and returns a tuple, similar to
 
 `useCreateLens<A>(initialState: S): Lens<S>`
 
-A convenience wrapper that just memoizes a call to `createLens`. Quite literally: `React.useMemo(() => createLens(initialState), [])`.
+A convenience wrapper that just memoizes a call to `createLens`.
+
+Quite literally: `React.useMemo(() => createLens(initialState), [])`.
 
 <!--
 
