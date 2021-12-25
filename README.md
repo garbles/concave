@@ -4,33 +4,53 @@
 
 Lens-like state management (for React).
 
-# Overview
+## Overview
 
-# Introduction to Lenses for React developers
+Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an excellent candidate for page/form/diagram builder-type applications written in React.
 
-# Installation
+#### Why use Concave?
 
-# API
+1. Excellent for handling recursive application states.
+2. Use it where you need it. Not an all or nothing solution.
+3. Minimalistic and intuitive API.
+4. Superior component testing experience.
 
-## `createLens<S>(initialState: S): Lens<S>`
+### Create your lens
 
-## `Lens<A>`
+```ts
+import { createLens } from "concave";
+import { AppState, initialAppState } from "./state";
+```
+
+###
+
+## A brief introduction to lenses for React/Redux developers
+
+If you have built React applications with Redux then you are probably familiar with [selectors](https://redux.js.org/usage/deriving-data-selectors).
+
+## Installation
+
+## API
+
+### `createLens<S>(initialState: S): Lens<S>`
+
+### `Lens<A>`
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around `A`
 
-## `Store<A>`
+### `Store<A>`
 
-# Use with React
+## Use with React
 
-## `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
+### `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
 
-## `useCreateLens<A>(initialState: S): Lens<S>`
+### `useCreateLens<A>(initialState: S): Lens<S>`
 
-# Examples
+## Examples
 
-# Testing
+## Testing
 
-# Performance
+## Performance
 
 1. Use shouldUpdate.
 
