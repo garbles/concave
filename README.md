@@ -55,21 +55,21 @@ npm install concave use-sync-external-store
 
 ## API
 
-### `createLens<S>(initialState: S): Lens<S>`
+##### `createLens<S>(initialState: S): Lens<S>`
 
-### `Lens<A>`
+##### `Lens<A>`
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around a type `A`.
 
-### `Store<A>`
+##### `Store<A>`
 
 ## Extensions for React
 
-### `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
+##### `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
 
 Integrates a `Lens<A>` into the React life-cycle and returns a tuple, similar to `useState`.
 
-### `useCreateLens<A>(initialState: S): Lens<S>`
+##### `useCreateLens<A>(initialState: S): Lens<S>`
 
 A convenience wrapper that just memoizes a call to `createLens`. Quite literally: `React.useMemo(() => createLens(initialState), [])`.
 
