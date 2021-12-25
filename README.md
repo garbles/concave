@@ -10,17 +10,23 @@ A Lens-like interface for state management in React.
 
 ## API
 
-### `concave<S>(initialState: S): [Lens<S>, Store<S>]`
-
-### `useConcave<S>(initialState: S): [Lens<S>, Store<S>]`
+### `createLens<S>(initialState: S): Lens<S>`
 
 ### `Lens<A>`
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around `A`
 
-#### `Lens<A>.use(shouldUpdate? ShouldUpdate<A>): [ProxyValue<A>, UpdateFn<A>]`
+#### `Lens<A>.getStore(): Store<A>`
 
 #### `Lens<A>.$key`
+
+#### `Store<A>`
+
+## Use with React
+
+### `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
+
+### `useCreateLens<A>(initialState: S): Lens<S>`
 
 ## Examples
 
