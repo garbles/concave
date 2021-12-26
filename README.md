@@ -20,10 +20,6 @@ A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refe
 
 ## `Store<A>`
 
-# Use with React
-
-## `useLens<A>(lens: Lens<A>, shouldUpdate? ShouldUpdate<A>): [Value<A>, Update<A>]`
-
 ## `useCreateLens<A>(initialState: S): Lens<S>`
 
 # Examples
