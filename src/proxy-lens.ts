@@ -1,7 +1,7 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
 import { keyPathToString } from "./key-path-to-string";
 import { ProxyValue } from "./proxy-value";
-import { useLens } from "./react";
+import { createUseLens } from "./react";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 import { Store } from "./store";
@@ -82,7 +82,7 @@ export const proxyLens = <S, A>(
       }
 
       if (key === "use") {
-        target.use ??= (shouldUpdate) => useLens(proxy, shouldUpdate);
+        target.use ??= createUseLens(proxy);
         return target.use;
       }
 
