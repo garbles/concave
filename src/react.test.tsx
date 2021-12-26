@@ -5,7 +5,6 @@
 import { act, render, screen } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
-import { useLens } from "./react";
 import { createLens } from "./create-lens";
 import { ShouldUpdate } from "./should-update";
 import { ProxyLens } from "./proxy-lens";
@@ -32,7 +31,7 @@ beforeEach(() => {
 });
 
 const App = (props: { state: ProxyLens<State> }) => {
-  const [cState, setC] = useLens(props.state.a.b.c);
+  const [cState, setC] = props.state.a.b.c.use();
 
   const onClick = () => setC((c) => c + "!");
 
@@ -82,7 +81,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   let bRenderCount = 0;
 
   const E = React.memo((props: { state: ProxyLens<State> }) => {
-    useLens(props.state.a.d.e);
+    props.state.a.d.e.use();
 
     eRenderCount++;
 
@@ -90,7 +89,7 @@ test("does not re-render adjacent that do not listen to same state elements", ()
   });
 
   const B = React.memo((props: { state: ProxyLens<State> }) => {
-    const [b] = useLens(props.state.a.b);
+    const [b] = props.state.a.b.use();
 
     bRenderCount++;
 
@@ -138,7 +137,7 @@ describe("should update", () => {
   };
 
   const G = React.memo((props: GProps) => {
-    const [g, updateG] = useLens(props.state);
+    const [g, updateG] = props.state.use();
 
     const onClick = () => updateG((prev) => ({ ...prev, g: !prev.g }));
 
@@ -152,7 +151,7 @@ describe("should update", () => {
   };
 
   const F = (props: FProps) => {
-    const [fState, updateF] = useLens(lens.f, props.shouldUpdate);
+    const [fState, updateF] = lens.f.use(props.shouldUpdate);
 
     const onClick = () => {
       updateF((f) => [...f, { g: true }]);
@@ -256,8 +255,8 @@ test("multiple hooks only trigger one re-render", () => {
   let renderCount = 0;
 
   const Test = () => {
-    useLens(lens);
-    const [c, setC] = useLens(lens.a.b.c);
+    lens.use();
+    const [c, setC] = lens.a.b.c.use();
 
     renderCount++;
 
@@ -279,7 +278,7 @@ test("multiple hooks only trigger one re-render", () => {
 
 test("renders to string", () => {
   const Test = () => {
-    const [state] = useLens(lens);
+    const [state] = lens.use();
 
     return <pre>{state.a.b.c}</pre>;
   };
@@ -293,8 +292,8 @@ test("ignores passing the same value", () => {
   let renderCount = 0;
 
   const Test = () => {
-    useLens(lens);
-    const [a, setA] = useLens(lens.a);
+    lens.use();
+    const [a, setA] = lens.a.use();
 
     renderCount++;
 

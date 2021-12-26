@@ -1,8 +1,11 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
 import { keyPathToString } from "./key-path-to-string";
+import { ProxyValue } from "./proxy-value";
+import { createUseLens } from "./react";
 import { ReactDevtools } from "./react-devtools";
+import { ShouldUpdate } from "./should-update";
 import { Store } from "./store";
-import { AnyArray, AnyObject, AnyPrimitive, Key } from "./types";
+import { AnyArray, AnyObject, AnyPrimitive, Key, Update } from "./types";
 
 type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
@@ -16,6 +19,11 @@ type BaseProxyLens<A> = {
    * Fetches the store for current focus.
    */
   getStore(): Store<A>;
+
+  /**
+   * Collapses the lens into a React hook.
+   */
+  use(shouldUpdate?: ShouldUpdate<A>): [ProxyValue<A>, Update<A>];
   /**
    * A unique key for cases when you need a key. e.g. A React list.
    *
@@ -56,105 +64,106 @@ export const proxyLens = <S, A>(
   focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
 ): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
-  const keyCache: KeyCache = {};
+  type Target = Partial<BaseProxyLens<A> & { cache: KeyCache }>;
 
-  let $key: unknown;
-  let getStore: unknown;
+  const proxy = new Proxy({} as Target, {
+    get(target, key) {
+      /**
+       * Block React introspection as it will otherwise produce an infinite chain of
+       * ProxyLens values in React Devtools.
+       */
+      if (key === "$$typeof") {
+        return undefined;
+      }
 
-  const proxy = new Proxy(
-    {},
-    {
-      get(_target, key) {
-        /**
-         * Block React introspection as it will otherwise produce an infinite chain of
-         * ProxyLens values in React Devtools.
-         */
-        if (key === "$$typeof") {
-          return undefined;
-        }
+      if (key === "$key") {
+        target.$key ??= keyPathToString(focus.keyPath);
+        return target.$key;
+      }
 
-        if (key === "$key") {
-          $key ??= keyPathToString(focus.keyPath);
-          return $key;
-        }
+      if (key === "use") {
+        target.use ??= createUseLens(proxy);
+        return target.use;
+      }
 
-        if (key === "getStore") {
-          getStore ??= () => storeFactory(focus);
-          return getStore;
-        }
+      if (key === "getStore") {
+        target.getStore ??= () => storeFactory(focus);
+        return target.getStore;
+      }
 
-        if (keyCache[key as keyof A] === undefined) {
-          const nextFocus = focusProp(focus, key as keyof A);
-          const nextProxy = proxyLens(storeFactory, nextFocus);
-          keyCache[key as keyof A] = nextProxy;
-        }
+      target.cache ??= {};
 
-        return keyCache[key as keyof A];
-      },
+      if (target.cache[key as keyof A] === undefined) {
+        const nextFocus = focusProp(focus, key as keyof A);
+        const nextProxy = proxyLens(storeFactory, nextFocus);
+        target.cache[key as keyof A] = nextProxy;
+      }
 
-      ownKeys(_target) {
-        return ["$key", "getStore", THROW_ON_COPY];
-      },
+      return target.cache[key as keyof A];
+    },
 
-      getOwnPropertyDescriptor(_target, key) {
-        if (key === "$key" || key === "getStore") {
-          return {
-            configurable: true,
-            enumerable: true,
-            writable: false,
-            value: proxy[key as keyof ProxyLens<A>],
-          };
-        }
+    ownKeys(_target) {
+      return ["$key", "getStore", "use", THROW_ON_COPY];
+    },
 
-        /**
-         * This is a hack to ensure that when React Devtools is
-         * reading all of the props with `getOwnPropertyDescriptors`
-         * it does not throw an error.
-         */
-        if (ReactDevtools.isCalledInsideReactDevtools()) {
-          return {
-            configurable: true,
-            enumerable: false,
-            value: undefined,
-          };
-        }
+    getOwnPropertyDescriptor(_target, key) {
+      if (key === "$key" || key === "getStore" || key === "use") {
+        return {
+          configurable: true,
+          enumerable: true,
+          writable: false,
+          value: proxy[key as keyof Partial<BaseProxyLens<A>>],
+        };
+      }
 
-        /**
-         * We otherwise do not want the lens to be introspected with `Object.getOwnPropertyDescriptors`
-         * which will happen internally with `{ ...lens }` or `Object.assign({}, lens)`.
-         * Both of those operations will create a new plain object from the properties that it can retrieve
-         * off of the lens; however, the lens is a shell around nothing and relies _heavily_ on TypeScript
-         * telling the developer which attributes are available. Therefore, copying the lens will leave you
-         * with an object that only has `$key` and `use`. Accessing `lens.user`, for example, will be
-         * `undefined` and will not be caught by TypeScript because the Proxy is typed as `A & { $key, use }`.
-         *
-         * If we've reached here, we are trying to access the property descriptor for `THROW_ON_COPY`,
-         * which is not a real property on the lens, so just throw.
-         */
-        throw new Error(
-          "ProxyLens threw because you tried to access all property descriptors—probably through " +
-            "`{ ...lens }` or `Object.assign({}, lens)`. Doing this will break the type safety offered by " +
-            "this library so it is forbidden. Sorry, buddy pal."
-        );
-      },
+      /**
+       * This is a hack to ensure that when React Devtools is
+       * reading all of the props with `getOwnPropertyDescriptors`
+       * it does not throw an error.
+       */
+      if (ReactDevtools.isCalledInsideReactDevtools()) {
+        return {
+          configurable: true,
+          enumerable: false,
+          value: undefined,
+        };
+      }
 
-      getPrototypeOf() {
-        return null;
-      },
-      preventExtensions() {
-        return true;
-      },
-      isExtensible() {
-        return false;
-      },
-      set() {
-        throw new Error("Cannot set property on ProxyLens");
-      },
-      deleteProperty() {
-        throw new Error("Cannot delete property on ProxyLens");
-      },
-    }
-  ) as ProxyLens<A>;
+      /**
+       * We otherwise do not want the lens to be introspected with `Object.getOwnPropertyDescriptors`
+       * which will happen internally with `{ ...lens }` or `Object.assign({}, lens)`.
+       * Both of those operations will create a new plain object from the properties that it can retrieve
+       * off of the lens; however, the lens is a shell around nothing and relies _heavily_ on TypeScript
+       * telling the developer which attributes are available. Therefore, copying the lens will leave you
+       * with an object that only has `$key` and `use`. Accessing `lens.user`, for example, will be
+       * `undefined` and will not be caught by TypeScript because the Proxy is typed as `A & { $key, use }`.
+       *
+       * If we've reached here, we are trying to access the property descriptor for `THROW_ON_COPY`,
+       * which is not a real property on the lens, so just throw.
+       */
+      throw new Error(
+        "ProxyLens threw because you tried to access all property descriptors—probably through " +
+          "`{ ...lens }` or `Object.assign({}, lens)`. Doing this will break the type safety offered by " +
+          "this library so it is forbidden. Sorry, buddy pal."
+      );
+    },
+
+    getPrototypeOf() {
+      return null;
+    },
+    preventExtensions() {
+      return true;
+    },
+    isExtensible() {
+      return false;
+    },
+    set() {
+      throw new Error("Cannot set property on ProxyLens");
+    },
+    deleteProperty() {
+      throw new Error("Cannot delete property on ProxyLens");
+    },
+  }) as ProxyLens<A>;
 
   return proxy;
 };

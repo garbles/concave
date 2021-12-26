@@ -19,9 +19,11 @@ export type ProxyValue<A> =
   A extends AnyPrimitive ? A :
   never;
 
+type Target<A> = { data: A; lens: ProxyLens<A>; toJSON?(): A; toLens?(): ProxyLens<A> };
+
 const isProxyable = (obj: any): obj is Proxyable => Array.isArray(obj) || isObject(obj);
 
-const proxyValueHandler: ProxyHandler<{ data: {}; lens: ProxyLens<{}>; toJSON?(): {}; toLens?(): ProxyLens<{}> }> = {
+const proxyHandler: ProxyHandler<Target<{}>> = {
   get(target, key) {
     if (key === "toJSON") {
       target.toJSON ??= () => target.data;
@@ -104,8 +106,8 @@ export const proxyValue = <A>(data: A, lens: ProxyLens<A>): ProxyValue<A> => {
   let cached = valueCache.get(data) as ProxyValue<A>;
 
   if (!cached) {
-    cached = new Proxy({ data, lens } as any, proxyValueHandler);
-    valueCache.set(data, cached as ProxyValue<{}>);
+    cached = new Proxy({ data, lens } as any, proxyHandler);
+    valueCache.set(data, cached as any);
   }
 
   return cached;
