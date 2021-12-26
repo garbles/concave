@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/create-lens.ts", "src/react.ts"],
+  entry: ["src/index.ts"],
   format: ["cjs", "esm"],
   external: ["react"],
   sourcemap: true,

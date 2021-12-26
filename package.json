@@ -1,28 +1,21 @@
 {
   "name": "concave",
   "version": "0.0.21",
-  "description": "Lens-like state management",
-  "main": "dist/create-lens.js",
-  "module": "dist/create-lens.mjs",
-  "types": "dist/create-lens.d.ts",
+  "description": "Lens-like state management (for React)",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "typesVersions": {
     "*": {
       "*": [
-        "./dist/create-lens.d.ts"
-      ],
-      "react": [
-        "./dist/react.d.ts"
+        "./dist/index.d.ts"
       ]
     }
   },
   "exports": {
     ".": {
-      "import": "./dist/create-lens.mjs",
-      "require": "./dist/create-lens.js"
-    },
-    "./react": {
-      "import": "./dist/react.mjs",
-      "require": "./dist/react.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
     }
   },
   "files": [
