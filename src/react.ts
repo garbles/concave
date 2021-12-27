@@ -77,6 +77,12 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
     return [value, setState];
   };
 
-export function useCreateLens<S>(initialState: S) {
-  return React.useMemo(() => createLens(initialState), []);
+export function useCreateLens<S>(initialState: S | (() => S)) {
+  return React.useMemo(() => {
+    if (typeof initialState === "function") {
+      return createLens((initialState as () => S)());
+    } else {
+      return createLens(initialState);
+    }
+  }, []);
 }

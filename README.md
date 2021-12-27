@@ -425,8 +425,6 @@ Returned by `lens.getStore()`. Mostly useful outside of the context of React.
 
 ### useCreateLens
 
-`useCreateLens<A>(initialState: S): Lens<S>`
+`useCreateLens<A>(initialState: S | (() => S)): Lens<S>`
 
-A convenience wrapper that just memoizes a call to `createLens`.
-
-Quite literally: `React.useMemo(() => createLens(initialState), [])`.
+A convenience wrapper that memoizes a call to `createLens`. If passed a function, it will call it once when creating the `Lens<S>`.
