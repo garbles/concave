@@ -216,6 +216,9 @@ let accountLens: Lens<Account>;
 
 const accountStore: Store<Account> = accountLens.getStore();
 
+/**
+ * Subscribe to all updates that may be relevant to `Lens<Account>`.
+ */
 const unsubscribe = accountStore.subscribe(() => {
   const currentAccount = accountStore.getSnapshot();
 
@@ -242,7 +245,7 @@ accountStore.update((account) => {
 
 A React hook that wraps `getStore()` into the component lifecycle and returns a tuple similar to `React.useState`.
 
-The first value it returns, `ProxyValue<A>`, is a Proxy around some state `A` that is effectively `A & { toLens(): Lens<A> }`. The proxy, however, applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` (unless it is a primitive value).
+The first value, `ProxyValue<A>`, is a Proxy around some state `A` that is effectively `A & { toLens(): Lens<A> }`. The proxy, however, applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` (unless it is a primitive value).
 
 That is,
 
