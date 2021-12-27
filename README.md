@@ -245,7 +245,13 @@ accountStore.update((account) => {
 
 A React hook that wraps `getStore()` into the component lifecycle and returns a tuple similar to `React.useState`.
 
-The first value, `ProxyValue<A>`, is a Proxy around some state `A` that is effectively `A & { toLens(): Lens<A> }`. The proxy, however, applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` (unless it is a primitive value).
+The first value, `ProxyValue<A>`, is a Proxy around some state `A`.
+
+```ts
+type ProxyValue<A> = { [K in keyof A]: ProxyValue<A[K]> } & { toLens(): Lens<A> };
+```
+
+It applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` **unless it is a primitive value**.
 
 That is,
 
@@ -269,7 +275,7 @@ const App = () => {
 };
 ```
 
-What's more, calling `toLens()` will always return the same `Lens<A>`.
+Calling `toLens()` will return the same `Lens<A>` as if you had just traversed the lens.
 
 ```ts
 let lens: Lens<State>;
@@ -308,17 +314,21 @@ const App = () => {
 };
 ```
 
-### Should use() render?
+### Going back and forth between Lens and Value
 
-Finally, `use()` accepts an optional "should update" argument to decide whether it should update. By default, the behavior is to render when the values are no longer strictly equal. If you do wish to define this argument it can be one of the following:
+### Should use() re-render?
+
+Whether it's iterating an array or switching on a [discriminated union](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html#union-exhaustiveness-checking), you will need to call `Lens.use()` in order to access the underlying data and decide _what_ to render. The "should update" argument is an optional way to decide whether `Lens.use()` should trigger a re-render. Specifically, it provides a convenient way to define the data dependencies for the component—not unlike the dependency array for `useEffect`, `useCallback`, etc.
+
+By default, the behavior is to render when the values are no longer strictly equal. The following is a list of ways to define "should update",
 
 1. `true`: Noop. Will inherit the default behavior.
-2. `false`: Will never update.
-3. `(prev: A, next: A) => boolean`: Same as the React `shouldComponentUpdate`.
-4. `(keyof A)[]`: Will re-render only when any of the listed keys change.
+2. `false`: Will never re-render.
+3. `(prev: A, next: A) => boolean`: Similar to React's `shouldComponentUpdate`.
+4. `(keyof A)[]`: Will only render when any of the listed keys change.
 5. `{ [K in keyof A]: ShouldUpdate<A[K]> }`: Will recursively apply these rules to values and ignore any keys that are not provided.
 
-Here some examples of how you might write "should update",
+Here are some examples,
 
 ```ts
 /**
@@ -348,18 +358,23 @@ lens.user.account.use({ email: (prev, next) => next.length > prev.length });
 lens.user.account.use({});
 
 /**
- * Render _only_ when the account.email changes.
+ * Render _only_ when the account.name changes.
  */
-lens.user.account.use(["email"]);
+lens.user.account.use(["name"]);
 
 /**
- * Render _only_ when the user.account.email changes. Note this is different than
+ * Render _only_ when the account.name or account.email changes.
+ */
+lens.user.account.use(["name", "email"]);
+
+/**
+ * Render _only_ when the user.account.name changes. Note this is different than
  * the above as it is the lens for the entire User and not just the Account.
  */
-lens.user.use({ account: ["email"] });
+lens.user.use({ account: ["name"] });
 ```
 
-:warning: For arrays, using 4 or 5 will assume that you mean to trigger a render when the length of the array changes. Additionally, when specifying properties on an array, it is assumed that you mean to target all of the members of the array. :warning:
+:warning: **For arrays, when defining "should update" as an array of keys or an object (4 or 5 above), the library assumes that you also mean to trigger a render when the length of the array changes. Additionally, when specifying properties on an array, it is assumed that you mean to target all of the members of the array. You therefore do not need to traverse the keys of the array (the indices) and instead you define keys of the individual members.** :warning:
 
 For example,
 
@@ -367,6 +382,7 @@ For example,
 type State = {
   todos: Array<{
     completed: boolean;
+    description: string;
     // ...
   }>;
 };
@@ -380,19 +396,21 @@ let lens: Lens<State>;
 lens.todos.use({ completed: true });
 
 /**
- * Render _only_ when the length has changed.
+ * Render _only_ when the length has changed _or_ any of the todos' `description` has changed.
  */
-lens.todos.use(["length"]);
+lens.todos.use(["description"]);
 
 /**
- * This is the same as above as `length` is implicit.
+ * Render _only_ when the length has changed.
  */
 lens.todos.use([]);
+lens.todos.use({});
+lens.todos.use((prev, next) => prev.length !== next.length);
 ```
 
 ### Lens.$key: A unique key for the `Lens<A>`
 
-A unique key for the `Lens<A>` depending on how its been traversed. `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
+A unique key for the `Lens<A>` (Just matches the traversal path.) `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
 
 ```tsx
 export const TodoList = () => {
@@ -421,7 +439,7 @@ type Listener = () => void;
 type Unsubscribe = () => void;
 ```
 
-Returned by `lens.getStore()`. Mostly useful outside of the context of React.
+Returned by `lens.getStore()`. Mostly useful outside of the React component life cycle.
 
 ### useCreateLens
 
