@@ -255,9 +255,7 @@ The first value, `ProxyValue<A>`, is a Proxy around some state `A`.
 type ProxyValue<A> = { [K in keyof A]: ProxyValue<A[K]> } & { toLens(): Lens<A> };
 ```
 
-It applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` **unless it is a primitive value**.
-
-That is,
+It applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` **unless it is a primitive value** :warning:. That is,
 
 ```ts
 let lens: Lens<State>;
@@ -317,8 +315,6 @@ const App = () => {
   // ...
 };
 ```
-
-### Going back and forth between Lens and Value
 
 ### Should use() re-render?
 
