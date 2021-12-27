@@ -6,14 +6,13 @@ Lens-like state management (for React).
 
 ## Overview
 
-Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an excellent candidate for page/form/diagram builder-type applications (written in React).
+Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
 
 #### Why use Concave?
 
 1. Excellent for handling recursive application states.
 2. Use it where you need it. Not an all or nothing solution.
 3. Minimalistic and intuitive API.
-4. Superior component testing experience.
 
 ### Create your lens
 
@@ -88,8 +87,8 @@ export const App = React.memo((props: Props) => {
    * store into the component life cycle.
    *
    * It takes a "should update?" argument that decides whether the hook should
-   * trigger a re-render. In this case, we re-render when the length of todos changes
-   * or any of them are completed.
+   * trigger a re-render. In this case, we render when the length of todos changes
+   * or any todo.completed is toggled.
    */
   const [todos, updateTodos] = props.state.todos.use({ completed: true });
 
@@ -135,7 +134,7 @@ export const Todo = React.memo((props: Props) => {
   const [todo, setTodo] = props.state.use();
 
   /**
-   * Render your TODO.
+   * Render the Todo.
    */
 });
 ```
@@ -154,7 +153,7 @@ npm install concave use-sync-external-store
 
 `createLens<S>(initialState: S): Lens<S>`
 
-Creates a store with state `S` and wraps it in a `Lens<S>` which is returned. To create a `Lens` inside of a React component, use `useCreateLens` (see below).
+Creates a store with state `S` and wraps it in a `Lens<S>` which is returned. To create a `Lens<S>` inside of a React component, use `useCreateLens` (see below).
 
 ```ts
 import { createLens } from "concave";
@@ -174,7 +173,9 @@ type Lens<A> = {
 ```
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around some data `A`. Inherits all
-_own keys_ that the underlying object/array would have. So for example,
+_own keys_ that the underlying object/array would have.
+
+For example,
 
 ```ts
 type Account = {
@@ -200,9 +201,11 @@ const accountLens: Lens<Account> = userLens.account;
 const emailLens: Lens<string> = accountLens.email;
 ```
 
-Lenses are cached and static from the time they are first accessed. So `lens.user.account` will always _be_ the same `Lens`. (Therefore, if a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
+Lenses are cached and static from the time they are first accessed. `lens.user.account` will always _be_ the same `Lens<Account>`.
 
-### Lens.getStore: Direct access to the store
+(:warning: If a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
+
+### Lens.getStore(): Direct access to the store
 
 `Lens<A>.getStore(): Store<A>`
 
@@ -231,28 +234,15 @@ accountLens.update((account) => {
 });
 ```
 
-### Lens.use: Hook into a React component
+### Lens.use(): Hook into a React component
 
 `Lens<A>.use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
 
-A React hook that wraps `getStore()` in the component lifecycle and returns a tuple similar to `React.useState` (with some additional goodies).
+A React hook that wraps `getStore()` into the component lifecycle and returns a tuple similar to `React.useState`.
 
-`ProxyValue<A>` is a Proxy around `A` that is effectively `A & { toLens(): Lens<A> }`. This is applied recursively, so accessing properties of
-a `ProxyValue` will return another `ProxyValue` unless it is a primitive value. That is,
+The first value it returns, `ProxyValue<A>`, is a Proxy around some state `A` that is effectively `A & { toLens(): Lens<A> }`. The proxy, however, applies recursively, so accessing properties of a `ProxyValue<A>` will return another `ProxyValue<A[keyof A>` (unless it is a primitive value).
 
-```ts
-let lens: Lens<State>;
-
-const App = () => {
-  const [state, updateState] = lens.use();
-
-  const accountLens = state.user.account.toLens();
-
-  // ...
-};
-```
-
-What's more, calling `toLens()` will always return the same `Lens` (even if the data has changes). So therefore,
+That is,
 
 ```ts
 let lens: Lens<State>;
@@ -261,16 +251,38 @@ const App = () => {
   const [state, updateState] = lens.use();
 
   /**
-   * These are the same. `Object.is(accountLens, otherLens) === true`
+   * `state.user.account` is a `ProxyValue<Account>`.
    */
   const accountLens = state.user.account.toLens();
-  const otherLens = lens.user.account;
+
+  /**
+   * Error! `.toLens()` is not defined on primitive values.
+   */
+  state.user.account.email.toLens();
 
   // ...
 };
 ```
 
-The second value in the tuple, `Update<A>` is a function that takes a callback where the current store value is passed as an argument and expects to return the next value.
+What's more, calling `toLens()` will always return the same `Lens<A>`.
+
+```ts
+let lens: Lens<State>;
+
+const App = () => {
+  const [state, updateState] = lens.use();
+
+  /**
+   * These are the same. `Object.is(accountLens1, accountLens2) === true`.
+   */
+  const accountLens1 = state.user.account.toLens();
+  const accountLens2 = lens.user.account;
+
+  // ...
+};
+```
+
+The second value in the `use()` tuple, `Update<A>`, is a function that takes a callback where the current store value is passed as an argument and expects to return the next value.
 
 ```ts
 let lens: Lens<State>;
@@ -296,7 +308,9 @@ const App = () => {
 };
 ```
 
-Finally, use accepts an optional "should update" argument to decide whether it should update. The default behavior is to update when a simple `Object.is` check fails. If you do wish to define this argument it can be one of the following:
+### Should it update?
+
+Finally, `use()` accepts an optional "should update" argument to decide whether it should update. The default behavior is to update when a simple `Object.is` check fails. If you do wish to define this argument it can be one of the following:
 
 1. `true`: Noop. Will inherit the default behavior.
 2. `false`: Will never update.
@@ -345,7 +359,7 @@ lens.user.account.use(["email"]);
 lens.user.use({ account: ["email"] });
 ```
 
-**For arrays, using 4 or 5 will assume that you mean to trigger a render when the length of the array changes. Additionally, when specifying properties on an array, it is assumed that you mean to target all of the members of the array.**
+:warning: For arrays, using 4 or 5 will assume that you mean to trigger a render when the length of the array changes. Additionally, when specifying properties on an array, it is assumed that you mean to target all of the members of the array. :warning:
 
 For example,
 
@@ -376,9 +390,9 @@ lens.todos.use(["length"]);
 lens.todos.use([]);
 ```
 
-### Lens.$key: A unique key for the `Lens`
+### Lens.$key: A unique key for the `Lens<A>`
 
-A unique key for the `Lens` depending on how its been traversed. `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
+A unique key for the `Lens<A>` depending on how its been traversed. `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
 
 ```tsx
 export const TodoList = () => {
