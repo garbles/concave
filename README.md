@@ -318,9 +318,13 @@ const App = () => {
 
 ### Should use() re-render?
 
-Whether it's iterating an array or switching on a [discriminated union](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html#union-exhaustiveness-checking), you will need to call `Lens.use()` in order to access the underlying data and decide _what_ to render. The "should update" argument is an optional way to decide whether `Lens.use()` should trigger a re-render. Specifically, it provides a convenient way to define the data dependencies for the component—not unlike the dependency array for `useEffect`, `useCallback`, etc.
+Whether it's iterating an array or switching on a [discriminated union](https://www.typescriptlang.org/docs/handbook/unions-and-intersections.html#union-exhaustiveness-checking), you will need to call `Lens.use()` in order to access the underlying data and decide _what_ to render. The "should update" argument is an optional way to decide whether `Lens.use()` _should_ re-render. Specifically, it provides a convenient way to define the data dependencies for the component—not unlike the dependency array for `useEffect`, `useCallback`, etc.
 
-By default, the behavior is to render when the values are no longer strictly equal. The following is a list of ways to define "should update",
+The default behavior of `Lens.use()` is to render when the next value is no longer _strictly equal_ to the previous one. However, this is not sufficient for a deeply recursive component tree. And the closer the `Lens.use()` call is to the root state, the more likely an update will fail the strictly equal check because changes cascade up the lens' inner traversal.
+
+For example, a component relying on `lens.element.use()` that does not define a "should update" argument would trigger a re-render when another component updates from `lens.element.data.children[1].data.placeholder.use()`. Therefore, if the component only actually relied on the `status` property of the `element`, it could be rewritten as `lens.element.use({ status: true })` and all other changes would be ignored.
+
+The following is a list of ways to define "should update",
 
 1. `true`: Noop. Will inherit the default behavior.
 2. `false`: Will never re-render.
@@ -328,7 +332,7 @@ By default, the behavior is to render when the values are no longer strictly equ
 4. `(keyof A)[]`: Will only render when any of the listed keys change.
 5. `{ [K in keyof A]: ShouldUpdate<A[K]> }`: Will recursively apply these rules to values and ignore any keys that are not provided.
 
-Here are some examples,
+Here are some examples of how you can define "should update",
 
 ```ts
 /**
