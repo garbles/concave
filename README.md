@@ -161,7 +161,7 @@ export const getUserName = (state: State) => getUser(state).name;
 
 The second "getter", `getUserName`, is a "refinement" on `getUser`. It gives us a way to write `getUserName` in terms of the _entire_ application state without revealing it. That is, `getUserName` only needs to know the shape of `User`, while `getUser` can get it from the parent. And so on...
 
-In Redux, state applications occur through dispatching actions. Lets consider how updates would look with explicit "setters".
+In Redux, state applications occur through dispatching actions. Lets consider how could look with explicit "setters" (... "setlectors"? :troll:).
 
 ```ts
 /**
@@ -189,7 +189,9 @@ export const setUserName = (state: State, name: string) => {
 
 Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
 
-### A lens is a "getter" and "setter" pair that are "refined" together
+### A lens is just a "getter" and "setter" pair that are "refined" together
+
+In the most basic sense, a lens is a getter and setter pair where their refinements are explicitly coupled to each other. Starting from the global state, each refinement _focuses_ in on a smaller piece of data—which is why they are called lenses.
 
 Lets start by writing a basic lens for the entire state.
 
@@ -243,7 +245,7 @@ const userNameLens: BasicLens<State, string> = {
 };
 ```
 
-These look nearly identical to the getter/setter examples above except they are defacto paired together. Each refinement _focuses_ more and more on a specific piece of data—which is why they are called lenses. Despite that, they are always rooted in terms of the global `State`.
+These look nearly identical to the getter/setter examples above except they are defacto paired together. Again, each refinement focuses more and more on a specific piece of data. Despite that, they are always rooted in terms of the global `State`.
 
 ```ts
 const globalState: State = {
