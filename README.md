@@ -119,25 +119,27 @@ export const App = React.memo((props: Props) => {
   const incomplete = todos.filter((todo) => !todo.completed);
   const complete = todos.filter((todo) => todo.completed);
 
-  <>
-    {/* When creating a new TODO, append it to the list of existing todos. */}
-    <NewTodoForm onCreate={(todo) => updateTodos((prev) => [...prev, todo])} />
-    {incomplete.map((todo) => {
-      /**
-       * Tranform data back into `Lens<Todo>`.
-       */
-      const lens = todo.toLens();
+  return (
+    <>
+      {/* When creating a new TODO, append it to the list of existing todos. */}
+      <NewTodoForm onCreate={(todo) => updateTodos((prev) => [...prev, todo])} />
+      {incomplete.map((todo) => {
+        /**
+         * Tranform data back into `Lens<Todo>`.
+         */
+        const lens = todo.toLens();
 
-      /**
-       * Render using the unique `lens.$key` as the key.
-       */
-      return <Todo state={lens} key={lens.$key} />;
-    })}
-    {complete.map((todo) => {
-      const lens = todo.toLens();
-      return <Todo state={lens} key={lens.$key} />;
-    })}
-  </>;
+        /**
+         * Render using the unique `lens.$key` as the key.
+         */
+        return <Todo state={lens} key={lens.$key} />;
+      })}
+      {complete.map((todo) => {
+        const lens = todo.toLens();
+        return <Todo state={lens} key={lens.$key} />;
+      })}
+    </>
+  );
 });
 ```
 
