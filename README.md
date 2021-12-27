@@ -11,7 +11,8 @@ Lens-like state management (for React).
   - [Why use Concave?](#why-use-concave)
   - [Create your lens](#create-your-lens)
   - [Build your application](#build-your-application)
-- [Thinking in lenses](#thinking-in-lenses)
+- [Thinking in lenses (for React developers)](#thinking-in-lenses-for-react-developers)
+  - [From Selectors](#from-selectors)
   - [A lens is just a "getter" and "setter" pair that are "refined" together](#a-lens-is-just-a-getter-and-setter-pair-that-are-refined-together)
   - [Looking recursively](#looking-recursively)
 - [Installation](#installation)
@@ -162,7 +163,9 @@ export const Todo = React.memo((props: Props) => {
 });
 ```
 
-## Thinking in lenses
+## Thinking in lenses (for React developers)
+
+### From Selectors
 
 If you have built React applications with Redux then you are probably familiar with [selectors](https://redux.js.org/usage/deriving-data-selectors). A Redux selector is a "getter" from the monolithic application state meant to obfuscate the shape of that state from the rest of the application. Used correctly, they are a good application of the [Law of Demeter](https://en.wikipedia.org/wiki/Law_of_Demeter).
 
