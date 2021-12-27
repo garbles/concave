@@ -4,11 +4,13 @@
 
 Lens-like state management (for React).
 
+<!-- Table of Contents -->
+
 ## Overview
 
 Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
 
-#### Why use Concave?
+### Why use Concave?
 
 1. Excellent for handling recursive application states.
 2. Use it where you need it. Not an all or nothing solution.
@@ -138,6 +140,146 @@ export const Todo = React.memo((props: Props) => {
    */
 });
 ```
+
+## Thinking in lenses
+
+If you have built React applications with Redux then you are probably familiar with [selectors](https://redux.js.org/usage/deriving-data-selectors). A Redux selector is a "getter" from the monolithic application state meant to obfuscate the shape of that state from the rest of the application. Used correctly, they are a good application of the [Law of Demeter](https://en.wikipedia.org/wiki/Law_of_Demeter).
+
+```ts
+import { State, User } from "./state";
+
+/**
+ * Get `User` off of the global `State`
+ */
+export const getUser = (state: State): User => state.user;
+
+/**
+ * Get `name` off the `User`
+ */
+export const getUserName = (state: State) => getUser(state).name;
+```
+
+The second "getter", `getUserName`, is a "refinement" on `getUser`. It gives us a way to write `getUserName` in terms of the _entire_ application state without revealing it. That is, `getUserName` only needs to know the shape of `User`, while `getUser` can get it from the parent. And so on...
+
+In Redux, state applications occur through dispatching actions. Lets consider how updates would look with explicit "setters".
+
+```ts
+/**
+ * Set `user` on the global `State`.
+ */
+export const setUser = (state: State, user: User) => {
+  return {
+    ...state,
+    user,
+  };
+};
+
+/**
+ * Set `name` on `user` which in turn will set `user` on the global `State`.
+ */
+export const setUserName = (state: State, name: string) => {
+  const user = getUser(state);
+
+  return setUser(state, {
+    ...user,
+    name,
+  });
+};
+```
+
+Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
+
+### A lens is a "getter" and "setter" pair that are "refined" together
+
+Lets start by writing a basic lens for the entire state.
+
+```ts
+const stateLens: BasicLens<State, State> = {
+  get(state: State): State {
+    return state;
+  },
+
+  set(prev: State, next: State): State {
+    return next;
+  },
+};
+```
+
+This is the identity equivalent for a lens, but now lets "refine" the lens for the user.
+
+```ts
+const userLens: BasicLens<State, User> = {
+  get(state: State): User {
+    return stateLens.get(state).user;
+  },
+
+  set(state: State, next: User): State {
+    const prev = stateLens.get(state);
+
+    return stateLens.set(state, {
+      ...prev,
+      user,
+    });
+  },
+};
+```
+
+And finally for the user name.
+
+```ts
+const userNameLens: BasicLens<State, string> = {
+  get(state: State) {
+    return userLens.get(state).name;
+  },
+
+  set(state: State, name: string): State {
+    const user = userLens.get(state);
+
+    return userLens.set(state, {
+      ...user,
+      name,
+    });
+  },
+};
+```
+
+These look nearly identical to the getter/setter examples above except they are defacto paired together. Each refinement _focuses_ more and more on a specific piece of data—which is why they are called lenses. Despite that, they are always rooted in terms of the global `State`.
+
+```ts
+const globalState: State = {
+  /* ... */
+};
+
+/**
+ * Retrieve the user name
+ */
+const userName = userNameLens.get(globalState);
+
+// ...
+
+const nextGlobalState = userNameLens.set(globalState, "Gabey Baby");
+```
+
+You may have noticed that it is probably common to make property (`keyof Refinement`) refinements and so we can just write a helper function to do this.
+
+```ts
+declare function prop<State, Refinement, Key extends keyof Refinement>(
+  lens: BasicLens<State, Refinement>,
+  key: Key
+): BasicLens<State, Refinement[Key]>;
+```
+
+And so instead, you might say.
+
+```ts
+const userLens = prop(stateLens, "user");
+const userNameLens = prop(userLens, "name");
+```
+
+### Looking recursively
+
+Lenses start to become particularly useful in situations where both the UI and application state are recursive. Builder-type applications
+often have sections inside of sections inside of sections with arbitrary contents and their data is represented as such. Using Redux to maintain this kind of state will often devolve into coming up with some kind of weird scheme where we keep track of the key path and pass it as an argument to the action so that the reducer can walk the state and find the piece of data that you actually meant to update. By pairing the data getter with a corresponding setter, these kinds of updates become trivial.
 
 ## Installation
 
