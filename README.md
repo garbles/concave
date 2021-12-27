@@ -185,7 +185,7 @@ export const getUserName = (state: State) => getUser(state).name;
 
 The second "getter", `getUserName`, is a "refinement" on `getUser`. It gives us a way to write `getUserName` in terms of the _entire_ application state without revealing it. That is, `getUserName` only needs to know the shape of `User`, while `getUser` can get it from the parent. And so on...
 
-In Redux, state updates occur through dispatching actions. Lets consider how could look with explicit "setters" (... "setlectors"? :troll:).
+In Redux, state updates occur through dispatching actions. Lets consider how could look with explicit "setters" (... "setlectors"? :trollface:).
 
 ```ts
 /**
