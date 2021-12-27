@@ -288,19 +288,14 @@ The second value in the `use()` tuple, `Update<A>`, is a function that takes a c
 let lens: Lens<State>;
 
 const App = () => {
-  const [state, updateState] = lens.use();
+  const [account, updateAccount] = lens.user.account.use();
 
   // ...
 
-  updateState((currentState) => {
+  updateAccount((currentAccount) => {
     return {
-      ...currentState,
-      user: {
-        profile: {
-          ...currentState.profile,
-          email: "neato@example.com",
-        },
-      },
+      ...currentAccount,
+      email: "neato@example.com",
     };
   });
 
@@ -308,9 +303,9 @@ const App = () => {
 };
 ```
 
-### Should it update?
+### Should use() render?
 
-Finally, `use()` accepts an optional "should update" argument to decide whether it should update. The default behavior is to update when a simple `Object.is` check fails. If you do wish to define this argument it can be one of the following:
+Finally, `use()` accepts an optional "should update" argument to decide whether it should update. By default, the behavior is to render when the values are no longer strictly equal. If you do wish to define this argument it can be one of the following:
 
 1. `true`: Noop. Will inherit the default behavior.
 2. `false`: Will never update.
@@ -343,7 +338,7 @@ lens.user.account.use({ email: true });
 lens.user.account.use({ email: (prev, next) => next.length > prev.length });
 
 /**
- * Functionally equivalent to `false`.
+ * Functionally equivalent to `false`. Never re-render.
  */
 lens.user.account.use({});
 
