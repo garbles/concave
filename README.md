@@ -207,7 +207,7 @@ const stateLens: BasicLens<State, State> = {
 };
 ```
 
-This is the identity equivalent for a lens, but now lets "refine" the lens for the user.
+This is the identity equivalent for a lens and not interesting, but now lets refine the lens for the user.
 
 ```ts
 const userLens: BasicLens<State, User> = {
@@ -245,7 +245,7 @@ const userNameLens: BasicLens<State, string> = {
 };
 ```
 
-These look nearly identical to the getter/setter examples above except they are defacto paired together. Again, each refinement focuses more and more on a specific piece of data. Despite that, they are always rooted in terms of the global `State`.
+These look nearly identical to the getter/setter examples above except they are defacto paired together. Again, each refinement focuses more and more on a smaller piece of data. Despite that, they are always rooted in terms of the global `State`.
 
 ```ts
 const globalState: State = {
@@ -253,12 +253,15 @@ const globalState: State = {
 };
 
 /**
- * Retrieve the user name
+ * Retrieve the user name using the global `State`.
  */
 const userName = userNameLens.get(globalState);
 
 // ...
 
+/**
+ * Set a new user name in terms of the global `State`.
+ */
 const nextGlobalState = userNameLens.set(globalState, "Gabey Baby");
 ```
 
