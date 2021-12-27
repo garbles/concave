@@ -343,7 +343,7 @@ lens.user.account.use(["email"]);
 lens.user.use({ account: ["email"] });
 ```
 
-**For arrays, using 4 or 5 will assume that you mean to trigger a render when the length changes. Accessing keys of arrays it is implicit that you mean to watch all values in the array.**
+**For arrays, using 4 or 5 will assume that you mean to trigger a render when the length of the array changes. Additionally, when specifying properties on an array, it is assumed that you mean to target all of the members of the array.**
 
 For example,
 
@@ -358,9 +358,20 @@ type State = {
 let lens: Lens<State>;
 
 /**
- *
+ * Render _only_ when the length of `todos` has changed and/or _any_ of
+ * the todos' `completed` is toggled.
  */
 lens.todos.use({ completed: true });
+
+/**
+ * Render _only_ when the length has changed.
+ */
+lens.todos.use(["length"]);
+
+/**
+ * This is the same as above as `length` is implicit.
+ */
+lens.todos.use([]);
 ```
 
 #### `$key`: A unique key for the `Lens`
@@ -385,7 +396,18 @@ export const TodoList = () => {
 
 ### Store
 
-`Store<A>`
+```ts
+type Store<A> = {
+  getSnapshot(): A;
+  subscribe(listener: Listener): Unsubscribe;
+  update((current: A) => A): void;
+}
+
+type Listener = () => void;
+type Unsubscribe = () => void;
+```
+
+Returned by `lens.getStore()`. Mostly useful outside of the context of React.
 
 ### useCreateLens
 
@@ -394,19 +416,3 @@ export const TodoList = () => {
 A convenience wrapper that just memoizes a call to `createLens`.
 
 Quite literally: `React.useMemo(() => createLens(initialState), [])`.
-
-<!--
-
-## Examples
-
-## Testing
-
-## Performance
-
-1. Use shouldUpdate.
-
-2. If do use a shouldUpdate argument for the lens, you can either memoize it with `React.useMemo` or `React.useCallback` or store it outside of the component.
-
-3. Memoize every component with `React.memo` foward lenses as props rather than globals.
-
--->
