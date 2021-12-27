@@ -203,7 +203,7 @@ const emailLens: Lens<string> = accountLens.email;
 
 Lenses are cached and static from the time they are first accessed. `lens.user.account` will always _be_ the same `Lens<Account>`.
 
-(:warning: If a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
+:warning: If a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.
 
 ### Lens.getStore(): Direct access to the store
 
@@ -214,8 +214,10 @@ Every `Lens<A>` exposes a `getStore()` method that returns the underlying `Store
 ```ts
 let accountLens: Lens<Account>;
 
-const unsubscribe = accountLens.subscribe(() => {
-  const currentAccount = accountLens.getSnapshot();
+const accountStore: Store<Account> = accountLens.getStore();
+
+const unsubscribe = accountStore.subscribe(() => {
+  const currentAccount = accountStore.getSnapshot();
 
   /**
    * Do something with `currentAccount`.
@@ -229,7 +231,7 @@ let email: string;
 /**
  * Update email.
  */
-accountLens.update((account) => {
+accountStore.update((account) => {
   return { ...account, email };
 });
 ```
