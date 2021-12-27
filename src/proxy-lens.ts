@@ -59,6 +59,8 @@ const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[k
   };
 };
 
+const specialKeys: (keyof BaseProxyLens<{}>)[] = ["use", "getStore", "$key"];
+
 export const proxyLens = <S, A>(
   storeFactory: StoreFactory<S>,
   focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
@@ -103,11 +105,15 @@ export const proxyLens = <S, A>(
     },
 
     ownKeys(_target) {
-      return ["$key", "getStore", "use", THROW_ON_COPY];
+      return [...specialKeys, THROW_ON_COPY];
+    },
+
+    has(_target, key) {
+      return specialKeys.includes(key as keyof BaseProxyLens<{}>);
     },
 
     getOwnPropertyDescriptor(_target, key) {
-      if (key === "$key" || key === "getStore" || key === "use") {
+      if (specialKeys.includes(key as keyof BaseProxyLens<{}>)) {
         return {
           configurable: true,
           enumerable: true,
