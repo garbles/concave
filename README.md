@@ -71,9 +71,9 @@ root.render(<App state={lens} />);
 // components/App.tsx
 
 import { Lens } from "concave";
-import { State } from "./lens";
-import { NewTodoForm } from "./new-todo-form";
-import { Todo } from "./todo";
+import { State } from "../lens";
+import { NewTodoForm } from "./NewTodoForm";
+import { Todo } from "./Todo";
 
 type Props = {
   state: Lens<State>;
@@ -119,8 +119,10 @@ export const App = React.memo((props: Props) => {
 ```
 
 ```tsx
+// components/Todo.tsx
+
 import { Lens } from "concave";
-import type { Todo } from "./lens";
+import type { Todo } from "../lens";
 
 type Props = {
   state: Lens<Todo>;
@@ -200,7 +202,7 @@ const emailLens: Lens<string> = accountLens.email;
 
 Lenses are cached and static from the time they are first accessed. So `lens.user.account` will always _be_ the same `Lens`. (Therefore, if a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
 
-#### `getStore`: Direct access to the store
+### Lens.getStore: Direct access to the store
 
 `Lens<A>.getStore(): Store<A>`
 
@@ -229,7 +231,7 @@ accountLens.update((account) => {
 });
 ```
 
-#### `use`: Hook into a React component
+### Lens.use: Hook into a React component
 
 `Lens<A>.use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
 
@@ -374,9 +376,7 @@ lens.todos.use(["length"]);
 lens.todos.use([]);
 ```
 
-#### `$key`: A unique key for the `Lens`
-
-`Lens<A>.$key`
+### Lens.$key: A unique key for the `Lens`
 
 A unique key for the `Lens` depending on how its been traversed. `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
 
