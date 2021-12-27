@@ -13,7 +13,7 @@ Lens-like state management (for React).
   - [Build your application](#build-your-application)
 - [Thinking in lenses (for React developers)](#thinking-in-lenses-for-react-developers)
   - [From Selectors](#from-selectors)
-  - [Now make them kiss](#now-make-them-kiss)
+  - [Now kiss!](#now-kiss)
   - [Looking recursively](#looking-recursively)
 - [Installation](#installation)
 - [API](#api)
@@ -25,6 +25,7 @@ Lens-like state management (for React).
   - [Lens.$key: A unique key for the `Lens<A>`](#lenskey-a-unique-key-for-the-lensa)
   - [Store](#store)
   - [useCreateLens](#usecreatelens)
+- [Use without TypeScript](#use-without-typescript)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -215,7 +216,7 @@ export const setUserName = (state: State, name: string) => {
 
 Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
 
-### Now make them kiss
+### Now kiss!
 
 In the most basic sense, a lens is just a getter and setter pair where their refinements are explicitly coupled to each other. When we define a way to get the user's name, lets also define the way to set it. Starting from the global state, each refinement _focuses_ in on a smaller piece of data—which is why they are called lenses.
 
@@ -625,3 +626,7 @@ declare function useCreateLens<A>(initialState: S | (() => S)): Lens<S>;
 ```
 
 A convenience wrapper that memoizes a call to `createLens`. If passed a function, it will call it once when creating the `Lens<S>`.
+
+## Use without TypeScript
+
+This library relies heavily on the meta-programming capabilities afforded by TypeScript + Proxy. I really do not recommend using this without TypeScript. It's 2021. Why aren't you writing TypeScript, bud?
