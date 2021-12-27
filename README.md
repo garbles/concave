@@ -4,11 +4,32 @@
 
 Lens-like state management (for React).
 
-<!-- Table of Contents -->
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Overview](#overview)
+  - [Why use Concave?](#why-use-concave)
+  - [Create your lens](#create-your-lens)
+  - [Build your application](#build-your-application)
+- [Thinking in lenses](#thinking-in-lenses)
+  - [A lens is just a "getter" and "setter" pair that are "refined" together](#a-lens-is-just-a-getter-and-setter-pair-that-are-refined-together)
+  - [Looking recursively](#looking-recursively)
+- [Installation](#installation)
+- [API](#api)
+  - [createLens](#createlens)
+  - [Lens](#lens)
+  - [Lens.getStore(): Direct access to the store](#lensgetstore-direct-access-to-the-store)
+  - [Lens.use(): Hook into a React component](#lensuse-hook-into-a-react-component)
+  - [Should use() re-render?](#should-use-re-render)
+  - [Lens.$key: A unique key for the `Lens<A>`](#lenskey-a-unique-key-for-the-lensa)
+  - [Store](#store)
+  - [useCreateLens](#usecreatelens)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Overview
 
-Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
+Concave is a state management library. Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
 
 ### Why use Concave?
 
