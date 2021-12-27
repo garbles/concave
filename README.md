@@ -30,7 +30,7 @@ Lens-like state management (for React).
 
 ## Overview
 
-Concave is a state management library. Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
+Concave is not a general purpose state management library. It is intended for highly interactive UIs where the shape of the state is recursive and/or closely reflects the shape of the UI. Specifically, Concave is an strong candidate for page/form/diagram builder-type applications (written in React).
 
 ### Why use Concave?
 
@@ -185,7 +185,7 @@ export const getUserName = (state: State) => getUser(state).name;
 
 The second "getter", `getUserName`, is a "refinement" on `getUser`. It gives us a way to write `getUserName` in terms of the _entire_ application state without revealing it. That is, `getUserName` only needs to know the shape of `User`, while `getUser` can get it from the parent. And so on...
 
-In Redux, state applications occur through dispatching actions. Lets consider how could look with explicit "setters" (... "setlectors"? :troll:).
+In Redux, state updates occur through dispatching actions. Lets consider how could look with explicit "setters" (... "setlectors"? :troll:).
 
 ```ts
 /**
