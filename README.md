@@ -13,7 +13,7 @@ Lens-like state management (for React).
   - [Build your application](#build-your-application)
 - [Thinking in lenses (for React developers)](#thinking-in-lenses-for-react-developers)
   - [From Selectors](#from-selectors)
-  - [A lens is just a "getter" and "setter" pair that are "refined" together](#a-lens-is-just-a-getter-and-setter-pair-that-are-refined-together)
+  - [Now make them kiss](#now-make-them-kiss)
   - [Looking recursively](#looking-recursively)
 - [Installation](#installation)
 - [API](#api)
@@ -213,9 +213,9 @@ export const setUserName = (state: State, name: string) => {
 
 Again, notice how the second "setter" relies on the first: `setUserName` is a "refinement" of `setUser`. Once more, `setUserName` can rely on `getUser` and `setUser` in order to get and set the user on the global state without revealing it.
 
-### A lens is just a "getter" and "setter" pair that are "refined" together
+### Now make them kiss
 
-In the most basic sense, a lens is a getter and setter pair where their refinements are explicitly coupled to each other. Starting from the global state, each refinement _focuses_ in on a smaller piece of data—which is why they are called lenses.
+In the most basic sense, a lens is just a getter and setter pair where their refinements are explicitly coupled to each other. When we define a way to get the user's name, lets also define the way to set it. Starting from the global state, each refinement _focuses_ in on a smaller piece of data—which is why they are called lenses.
 
 Lets start by writing a basic lens for the entire state.
 
