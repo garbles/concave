@@ -229,11 +229,84 @@ accountLens.update((account) => {
 
 A React hook that wraps `getStore()` in the component lifecycle and returns a tuple similar to `React.useState` (with some additional goodies).
 
-`ProxyValue<A>` is a Proxy around `A` that is effectively `A & { toLens(): Lens<A> }`
+`ProxyValue<A>` is a Proxy around `A` that is effectively `A & { toLens(): Lens<A> }`. This is applied recursively, so accessing properties of
+a `ProxyValue` will return another `ProxyValue` unless it is a primitive value. That is,
+
+```ts
+let lens: Lens<State>;
+
+const App = () => {
+  const [state, updateState] = lens.use();
+
+  const accountLens = state.user.account.toLens();
+
+  // ...
+};
+```
+
+What's more, calling `toLens()` will always return the same `Lens` (even if the data has changes). So therefore,
+
+```ts
+let lens: Lens<State>;
+
+const App = () => {
+  const [state, updateState] = lens.use();
+
+  /**
+   * These are the same. `Object.is(accountLens, otherLens) === true`
+   */
+  const accountLens = state.user.account.toLens();
+  const otherLens = lens.user.account;
+
+  // ...
+};
+```
+
+The second value in the tuple, `Update<A>` is a function that takes a callback where the current store value is passed as an argument and expects to return the next value.
+
+```ts
+let lens: Lens<State>;
+
+const App = () => {
+  const [state, updateState] = lens.use();
+
+  // ...
+
+  updateState((currentState) => {
+    return {
+      ...currentState,
+      user: {
+        profile: {
+          ...currentState.profile,
+          email: "neato@example.com",
+        },
+      },
+    };
+  });
+
+  // ...
+};
+```
 
 #### `$key`
 
 `Lens<A>.$key`
+
+A unique key for the `Lens` depending on how its been traversed. `lens.user.account.email.$key === "root.user.account.email"`. Meant to be used when React requires a key.
+
+```tsx
+export const TodoList = () => {
+  const [todos] = todoLens.use();
+
+  return <>
+    {todos.map((todo) => {
+      const lens = todo.toLens();
+
+      return <Todo state={lens} key={lens.$key} />
+    })}
+  <>
+}
+```
 
 ### Store
 
