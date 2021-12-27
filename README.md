@@ -192,11 +192,13 @@ const accountLens: Lens<Account> = userLens.account;
 const emailLens: Lens<string> = accountLens.email;
 ```
 
-Lenses are cached and static from the time they are first accessed. So `lens.user.account` will always _be_ the same `Lens`. (If a React component only accepts a `Lens` as props then it can be fully memoized with `React.memo`.)
+Lenses are cached and static from the time they are first accessed. So `lens.user.account` will always _be_ the same `Lens`. (Therefore, if a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
 
-#### `getStore`
+#### Get the store with `getStore`
 
-Every `Lens<A>` exposes a `getStore()` method that returns the underlying `Store<A>` (see below). With this you can access the current state of the store for `A` as well as subscribe to and push updates.
+`Lens<A>.getStore(): Store<A>`
+
+Every `Lens<A>` exposes a `getStore()` method that returns the underlying `Store<A>` (see below). With this you can access the current state of the store for `A`, as well as subscribe to and push updates.
 
 ```ts
 let accountLens: Lens<Account>;
@@ -221,9 +223,17 @@ accountLens.update((account) => {
 });
 ```
 
-#### `use`
+#### Hook into a React component with `use`
+
+`Lens<A>.use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
+
+A React hook that wraps `getStore()` in the component lifecycle and returns a tuple similar to `React.useState` (with some additional goodies).
+
+`ProxyValue<A>` is a Proxy around `A` that is effectively `A & { toLens(): Lens<A> }`
 
 #### `$key`
+
+`Lens<A>.$key`
 
 ### Store
 
