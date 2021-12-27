@@ -207,7 +207,9 @@ Lenses are cached and static from the time they are first accessed. `lens.user.a
 
 ### Lens.getStore(): Direct access to the store
 
-`Lens<A>.getStore(): Store<A>`
+```ts
+declare function getStore(): Store<A>;
+```
 
 Every `Lens<A>` exposes a `getStore()` method that returns the underlying `Store<A>` (see below). With this you can access the current state of the store for `A`, as well as subscribe to and push updates.
 
@@ -241,7 +243,9 @@ accountStore.update((account) => {
 
 ### Lens.use(): Hook into a React component
 
-`Lens<A>.use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
+```ts
+declare function use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
+```
 
 A React hook that wraps `getStore()` into the component lifecycle and returns a tuple similar to `React.useState`.
 
@@ -443,6 +447,8 @@ Returned by `lens.getStore()`. Mostly useful outside of the React component life
 
 ### useCreateLens
 
-`useCreateLens<A>(initialState: S | (() => S)): Lens<S>`
+```ts
+declare function useCreateLens<A>(initialState: S | (() => S)): Lens<S>;
+```
 
 A convenience wrapper that memoizes a call to `createLens`. If passed a function, it will call it once when creating the `Lens<S>`.
