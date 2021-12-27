@@ -152,7 +152,7 @@ npm install concave use-sync-external-store
 
 `createLens<S>(initialState: S): Lens<S>`
 
-Creates a store with state `S` and wraps it in a `Lens<S>` which is returned. To create a `Lens` inside of a React component.
+Creates a store with state `S` and wraps it in a `Lens<S>` which is returned. To create a `Lens` inside of a React component, use `useCreateLens` (see below).
 
 ```ts
 import { createLens } from "concave";
@@ -163,7 +163,13 @@ export const lens = createLens<State>(initialState);
 
 ### Lens
 
-`Lens<A>`
+```ts
+type Lens<A> = {
+  getStore(): Store<A>;
+  use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>];
+  $key: string;
+};
+```
 
 A stateless [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) around some data `A`. Inherits all
 _own keys_ that the underlying object/array would have. So for example,
@@ -194,7 +200,7 @@ const emailLens: Lens<string> = accountLens.email;
 
 Lenses are cached and static from the time they are first accessed. So `lens.user.account` will always _be_ the same `Lens`. (Therefore, if a React component only accepts a `Lens<Account>` as props then it can be fully memoized with `React.memo`.)
 
-#### Get the store with `getStore`
+#### `getStore`: Direct access to the store
 
 `Lens<A>.getStore(): Store<A>`
 
@@ -223,7 +229,7 @@ accountLens.update((account) => {
 });
 ```
 
-#### Hook into a React component with `use`
+#### `use`: Hook into a React component
 
 `Lens<A>.use(shouldUpdate?: ShouldUpdate): [ProxyValue<A>, Update<A>]`
 
@@ -288,7 +294,76 @@ const App = () => {
 };
 ```
 
-#### `$key`
+Finally, use accepts an optional "should update" argument to decide whether it should update. The default behavior is to update when a simple `Object.is` check fails. If you do wish to define this argument it can be one of the following:
+
+1. `true`: Noop. Will inherit the default behavior.
+2. `false`: Will never update.
+3. `(prev: A, next: A) => boolean`: Same as the React `shouldComponentUpdate`.
+4. `(keyof A)[]`: Will re-render only when any of the listed keys change.
+5. `{ [K in keyof A]: ShouldUpdate<A[K]> }`: Will recursively apply these rules to values and ignore any keys that are not provided.
+
+Here some examples of how you might write "should update",
+
+```ts
+/**
+ * Render when the account object changes.
+ */
+lens.user.account.use(true);
+
+/**
+ * Never re-render.
+ */
+lens.user.account.use(false);
+
+/**
+ * Render _only_ when the account.email changes.
+ */
+lens.user.account.use({ email: true });
+
+/**
+ * Render _only_ when the next email value is longer than the one
+ * that was previously rendered.
+ */
+lens.user.account.use({ email: (prev, next) => next.length > prev.length });
+
+/**
+ * Functionally equivalent to `false`.
+ */
+lens.user.account.use({});
+
+/**
+ * Render _only_ when the account.email changes.
+ */
+lens.user.account.use(["email"]);
+
+/**
+ * Render _only_ when the user.account.email changes. Note this is different than
+ * the above as it is the lens for the entire User and not just the Account.
+ */
+lens.user.use({ account: ["email"] });
+```
+
+**For arrays, using 4 or 5 will assume that you mean to trigger a render when the length changes. Accessing keys of arrays it is implicit that you mean to watch all values in the array.**
+
+For example,
+
+```ts
+type State = {
+  todos: Array<{
+    completed: boolean;
+    // ...
+  }>;
+};
+
+let lens: Lens<State>;
+
+/**
+ *
+ */
+lens.todos.use({ completed: true });
+```
+
+#### `$key`: A unique key for the `Lens`
 
 `Lens<A>.$key`
 
