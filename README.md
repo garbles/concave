@@ -245,7 +245,7 @@ const userNameLens: BasicLens<State, string> = {
 };
 ```
 
-These look nearly identical to the getter/setter examples above except they are defacto paired together. Again, each refinement focuses more and more on a smaller piece of data. Despite that, they are always rooted in terms of the global `State`.
+These look nearly identical to the getter/setter examples at the beginning of this section except they are defacto paired together. Again, each refinement focuses more and more on a smaller piece of data. Despite that, they are always rooted in terms of the global `State`.
 
 ```ts
 const globalState: State = {
@@ -265,7 +265,7 @@ const userName = userNameLens.get(globalState);
 const nextGlobalState = userNameLens.set(globalState, "Gabey Baby");
 ```
 
-You may have noticed that it is probably common to make property (`keyof Refinement`) refinements and so we can just write a helper function to do this.
+You may have noticed that it is probably common to make `keyof` refinements and so we can just write a helper function to do this.
 
 ```ts
 declare function prop<State, Refinement, Key extends keyof Refinement>(
@@ -274,7 +274,7 @@ declare function prop<State, Refinement, Key extends keyof Refinement>(
 ): BasicLens<State, Refinement[Key]>;
 ```
 
-And so instead, you might say.
+And so instead, you might say,
 
 ```ts
 const userLens = prop(stateLens, "user");
