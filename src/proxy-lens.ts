@@ -10,6 +10,7 @@ import { AnyArray, AnyObject, AnyPrimitive, Key, Update } from "./types";
 type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
   keyPath: Key[];
+  fullKeyPath: Key[];
 };
 
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
@@ -55,6 +56,7 @@ const THROW_ON_COPY = Symbol();
 const focusProp = <S, A>(focus: LensFocus<S, A>, key: keyof A): LensFocus<S, A[keyof A]> => {
   return {
     keyPath: [...focus.keyPath, key],
+    fullKeyPath: [...focus.fullKeyPath, key],
     lens: prop(focus.lens, key as keyof A),
   };
 };
@@ -63,7 +65,7 @@ const specialKeys: (keyof BaseProxyLens<{}>)[] = ["use", "getStore", "$key"];
 
 export const proxyLens = <S, A>(
   storeFactory: StoreFactory<S>,
-  focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
+  focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [], fullKeyPath: [] }
 ): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
   type Target = Partial<BaseProxyLens<A> & { cache: KeyCache }>;
@@ -79,7 +81,7 @@ export const proxyLens = <S, A>(
       }
 
       if (key === "$key") {
-        target.$key ??= keyPathToString(focus.keyPath);
+        target.$key ??= keyPathToString(focus.fullKeyPath);
         return target.$key;
       }
 
