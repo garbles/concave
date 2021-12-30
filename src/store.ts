@@ -9,8 +9,13 @@ type LensFocus<S, A> = {
 
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
+interface GetSnapshot<A> {
+  (opts?: { sync: true }): A;
+  (opts: { sync: false }): Promise<A>;
+}
+
 export type Store<A> = {
-  getSnapshot(): A;
+  getSnapshot: GetSnapshot<A>;
   subscribe(onStoreChange: Listener): Unsubscribe;
   update(updater: Updater<A>): void;
 };
@@ -21,8 +26,14 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
 
   return ({ keyPath, lens }) => {
     return {
-      getSnapshot() {
-        return lens.get(snapshot);
+      getSnapshot(opts = { sync: true }) {
+        const value = lens.get(snapshot);
+
+        if (opts.sync) {
+          return value as any;
+        } else {
+          return Promise.resolve(value);
+        }
       },
       subscribe(listener) {
         return graph.subscribe(keyPath, listener);
