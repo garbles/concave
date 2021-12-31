@@ -1,5 +1,5 @@
 import { basicLens, BasicLens } from "./basic-lens";
-import { assertIsDeferred, Deferred } from "./deferred";
+import { assertIsConnection, Connection } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -27,29 +27,33 @@ export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
   const subscribers = new SubscriptionGraph();
   let snapshot: S;
   let resolved: boolean;
+  let resolve: () => void;
+  let onResolved: Promise<void>;
 
   if (initialState !== undefined) {
     snapshot = initialState;
     resolved = true;
+    resolve = () => {};
+    onResolved = Promise.resolve();
   } else {
     resolved = false;
-  }
 
-  let resolve = () => {
-    resolved = true;
-  };
-
-  const onResolved = new Promise<void>((res) => {
     resolve = () => {
       resolved = true;
-      res();
-      resolve = () => {};
     };
 
-    if (resolved) {
-      resolve();
-    }
-  });
+    onResolved = new Promise<void>((res) => {
+      resolve = () => {
+        resolved = true;
+        res();
+        resolve = () => {};
+      };
+
+      if (resolved) {
+        resolve();
+      }
+    });
+  }
 
   return ({ keyPath, lens }) => {
     return {
@@ -92,7 +96,7 @@ export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
   };
 }
 
-export const createDeferredStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, input: I): StoreFactory<S> => {
+export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I>>, input: I): StoreFactory<S> => {
   const factory = createStoreFactory<S>();
   const subscribers = new SubscriptionGraph();
   const root = factory({ keyPath: [], lens: basicLens() });
@@ -103,9 +107,9 @@ export const createDeferredStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, 
    * This is lazy because the underlying data may change.
    */
   const getConnection = () =>
-    parent.getSnapshot({ sync: false }).then((deferred) => {
-      assertIsDeferred<S, I>(deferred);
-      return deferred.resolve(root, input);
+    parent.getSnapshot({ sync: false }).then((conn) => {
+      assertIsConnection<S, I>(conn);
+      return conn.resolve(root, input);
     });
 
   return (focus) => {

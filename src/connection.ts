@@ -1,26 +1,26 @@
 import { Store } from "./store";
 import { Unsubscribe } from "./types";
 
-const IS_DEFFERED = Symbol();
+const IS_CONNECTION = Symbol();
 
-type DeferredConnection = {
+type ConnectionToggle = {
   connect(): void;
   disconnect(): void;
 };
 
 type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-export type Deferred<S, I> = {
-  [IS_DEFFERED]: unknown;
-  resolve(store: Store<S | void>, input: I): DeferredConnection;
+export type Connection<S, I> = {
+  [IS_CONNECTION]: unknown;
+  resolve(store: Store<S | void>, input: I): ConnectionToggle;
 };
 
-export const deferred = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubscribe | void): Deferred<S, I> => {
-  type ConnectionMap = { [cacheKey: string]: DeferredConnection };
+export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubscribe | void): Connection<S, I> => {
+  type ConnectionMap = { [cacheKey: string]: ConnectionToggle };
   const mapCache = new WeakMap<Store<S | void>, ConnectionMap>();
 
   return {
-    [IS_DEFFERED]: true,
+    [IS_CONNECTION]: true,
 
     resolve(store, input) {
       let map = mapCache.get(store);
@@ -73,8 +73,8 @@ export const deferred = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubsc
   };
 };
 
-export function assertIsDeferred<S, I>(obj: any): asserts obj is Deferred<S, I> {
-  if (Reflect.has(obj, IS_DEFFERED) && Reflect.has(obj, "resolve") && obj.resolve.length === 2) {
+export function assertIsConnection<S, I>(obj: any): asserts obj is Connection<S, I> {
+  if (Reflect.has(obj, IS_CONNECTION) && Reflect.has(obj, "resolve") && obj.resolve.length === 2) {
     return;
   }
 

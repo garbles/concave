@@ -1,6 +1,6 @@
 import { basicLens } from "./basic-lens";
-import { Deferred, deferred } from "./deferred";
-import { createDeferredStoreFactory, createStoreFactory } from "./store";
+import { Connection, connection } from "./connection";
+import { createConnectionStoreFactory, createStoreFactory } from "./store";
 
 type State = {
   a: number;
@@ -118,17 +118,17 @@ describe("sync store", () => {
 });
 
 describe("async store", () => {
-  const setup = <S, I>(def: Deferred<S, I>, input: I) => {
+  const setup = <S, I>(def: Connection<S, I>, input: I) => {
     const syncFactory = createStoreFactory(def);
     const syncStore = syncFactory(noFocus);
-    const deferredFactory = createDeferredStoreFactory(syncStore, input);
+    const connectionFactory = createConnectionStoreFactory(syncStore, input);
 
-    return deferredFactory(noFocus);
+    return connectionFactory(noFocus);
   };
 
   test("creates an async store", async () => {
     const store = setup(
-      deferred<number, number>((store, input) => {
+      connection<number, number>((store, input) => {
         store.update(() => input + 10);
       }),
       1
@@ -145,7 +145,7 @@ describe("async store", () => {
   test("async store does not resolve unless it is subscribed to", async () => {
     const callback = jest.fn();
 
-    const store = setup(deferred<number, number>(callback), 1);
+    const store = setup(connection<number, number>(callback), 1);
 
     expect(callback).not.toHaveBeenCalled();
 
@@ -172,7 +172,7 @@ describe("async store", () => {
     expect.hasAssertions();
 
     const store = setup(
-      deferred<number, number>((store, input) => {
+      connection<number, number>((store, input) => {
         store.update((prev) => {
           expect(prev).toBeUndefined();
 
