@@ -102,7 +102,7 @@ export const createDeferredStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, 
   /**
    * This is lazy because the underlying data may change.
    */
-  const getObservable = () =>
+  const getConnection = () =>
     parent.getSnapshot({ sync: false }).then((deferred) => {
       assertIsDeferred<S, I>(deferred);
       return deferred.resolve(root, input);
@@ -117,15 +117,15 @@ export const createDeferredStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, 
       subscribe(listener) {
         const unsubscribe = subscribers.subscribe(focus.keyPath, listener);
 
-        getObservable().then((observable) => observable.connect());
+        getConnection().then((conn) => conn.connect());
 
         return async () => {
           unsubscribe();
 
-          const observable = await getObservable();
+          const conn = await getConnection();
 
           if (subscribers.size === 0) {
-            observable.disconnect();
+            conn.disconnect();
           }
         };
       },

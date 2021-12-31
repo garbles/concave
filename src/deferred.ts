@@ -3,7 +3,7 @@ import { Unsubscribe } from "./types";
 
 const IS_DEFFERED = Symbol();
 
-type DeferredObservable = {
+type DeferredConnection = {
   connect(): void;
   disconnect(): void;
 };
@@ -12,25 +12,25 @@ type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe 
 
 export type Deferred<S, I> = {
   [IS_DEFFERED]: unknown;
-  resolve(store: Store<S | void>, input: I): DeferredObservable;
+  resolve(store: Store<S | void>, input: I): DeferredConnection;
 };
 
 export const deferred = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubscribe | void): Deferred<S, I> => {
-  type ObservableMap = { [cacheKey: string]: DeferredObservable };
-  const cache = new WeakMap<Store<S | void>, ObservableMap>();
+  type ConnectionMap = { [cacheKey: string]: DeferredConnection };
+  const mapCache = new WeakMap<Store<S | void>, ConnectionMap>();
 
   return {
     [IS_DEFFERED]: true,
 
     resolve(store, input) {
-      const cacheKey = JSON.stringify(input);
-      let map = cache.get(store);
+      let map = mapCache.get(store);
 
       if (!map) {
         map = {};
-        cache.set(store, map);
+        mapCache.set(store, map);
       }
 
+      const cacheKey = JSON.stringify(input);
       let observable = map[cacheKey];
 
       if (observable) {
