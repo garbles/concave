@@ -1,28 +1,35 @@
 import { Store } from "./store";
 import { Unsubscribe } from "./types";
 
-const IS_CONNECTION = Symbol();
+const RESOLVE_CONNECTION_TOGGLE = Symbol();
 
 type ConnectionToggle = {
   connect(): void;
   disconnect(): void;
 };
 
+type ResolveConnectionToggle<S, I> = (store: Store<S | void>, input: I) => ConnectionToggle;
+
 type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 export type Connection<S, I> = {
-  [IS_CONNECTION]: unknown;
-  resolve(store: Store<S | void>, input: I): ConnectionToggle;
+  [RESOLVE_CONNECTION_TOGGLE]: ResolveConnectionToggle<S, I>;
 };
 
+function assertIsConnection<S, I>(obj: any): asserts obj is Connection<S, I> {
+  if (Reflect.has(obj, RESOLVE_CONNECTION_TOGGLE) && obj[RESOLVE_CONNECTION_TOGGLE].length === 2) {
+    return;
+  }
+
+  throw new Error("Unexpected Error");
+}
+
 export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubscribe | void): Connection<S, I> => {
-  type ConnectionMap = { [cacheKey: string]: ConnectionToggle };
-  const mapCache = new WeakMap<Store<S | void>, ConnectionMap>();
+  type ToggleMap = { [cacheKey: string]: ConnectionToggle };
+  const mapCache = new WeakMap<Store<S | void>, ToggleMap>();
 
   return {
-    [IS_CONNECTION]: true,
-
-    resolve(store, input) {
+    [RESOLVE_CONNECTION_TOGGLE](store, input) {
       let map = mapCache.get(store);
 
       if (!map) {
@@ -73,10 +80,7 @@ export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsub
   };
 };
 
-export function assertIsConnection<S, I>(obj: any): asserts obj is Connection<S, I> {
-  if (Reflect.has(obj, IS_CONNECTION) && Reflect.has(obj, "resolve") && obj.resolve.length === 2) {
-    return;
-  }
-
-  throw new Error("Unexpected Error");
-}
+export const derefConnection = <S, I>(obj: any): ResolveConnectionToggle<S, I> => {
+  assertIsConnection<S, I>(obj);
+  return obj[RESOLVE_CONNECTION_TOGGLE];
+};

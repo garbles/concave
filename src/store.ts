@@ -1,5 +1,5 @@
 import { basicLens, BasicLens } from "./basic-lens";
-import { assertIsConnection, Connection } from "./connection";
+import { derefConnection, Connection } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -104,13 +104,13 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
   root.subscribe(() => subscribers.notify([]));
 
   /**
-   * This is lazy because the underlying data may change.
+   * This is lazy because the underlying data may change on every call to `parent.getSnapshot()`
    */
   const getConnection = () =>
-    parent.getSnapshot({ sync: false }).then((conn) => {
-      assertIsConnection<S, I>(conn);
-      return conn.resolve(root, input);
-    });
+    parent
+      .getSnapshot({ sync: false })
+      .then(derefConnection)
+      .then((conn) => conn(root, input));
 
   return (focus) => {
     const store = factory(focus);

@@ -190,4 +190,5 @@ describe("async store", () => {
   test.todo("disconnects and calls clean up function after all listeners are removed");
   test.todo("walking keypath resolves as you would expect");
   test.todo("can synchronously resolve a value from the store after at least one value has been resolved");
+  test.todo("disconnects properly when the underlying data changes");
 });
