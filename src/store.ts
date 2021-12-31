@@ -1,4 +1,5 @@
 import { basicLens, BasicLens } from "./basic-lens";
+import { Deferred, DeferredObservable } from "./deferred";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -62,101 +63,8 @@ export const createStoreFactory = <S>(initialState: S): StoreFactory<S> => {
   };
 };
 
-type DeferredObservable = {
-  resolved: boolean;
-  onResolved: Promise<unknown>;
-  connect(): void;
-  disconnect(): void;
-};
-
-type Deferred<S, I> = {
-  resolve(store: Store<S | Nothing>, input: I): DeferredObservable;
-};
-
-const deferred = <S, I>(fn: (store: Store<S | Nothing>, input: I) => Unsubscribe): Deferred<S, I> => {
-  type ObservableMap = { [cacheKey: string]: DeferredObservable };
-  const cache = new WeakMap<Store<S | Nothing>, ObservableMap>();
-
-  return {
-    resolve(store: Store<S | Nothing>, input: I): DeferredObservable {
-      const cacheKey = JSON.stringify(input);
-      let map = cache.get(store);
-
-      if (!map) {
-        map = {};
-        cache.set(store, map);
-      }
-
-      let observable = map[cacheKey];
-
-      if (observable) {
-        return observable;
-      }
-
-      let connected = false;
-      let resolved = false;
-      let unsubscribe: Unsubscribe;
-
-      let resolve = () => {
-        resolved = true;
-      };
-
-      const onResolved = new Promise<void>((res) => {
-        resolve = () => {
-          resolved = true;
-          res();
-        };
-
-        if (resolved) {
-          resolve();
-        }
-      });
-
-      const wrapper: Store<S | Nothing> = {
-        ...store,
-        update(updater) {
-          resolve();
-          return store.update(updater);
-        },
-      };
-
-      return {
-        get resolved() {
-          return resolved;
-        },
-
-        get onResolved() {
-          return onResolved;
-        },
-
-        connect() {
-          if (connected) {
-            return;
-          }
-
-          connected = true;
-          unsubscribe = fn(wrapper, input);
-        },
-
-        disconnect() {
-          if (!connected) {
-            return;
-          }
-
-          connected = false;
-          unsubscribe();
-        },
-      };
-    },
-  };
-};
-
-type Nothing = typeof NOTHING;
-
-const NOTHING = Symbol();
-
 export const createAsyncStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, input: I): StoreFactory<S> => {
-  const factory = createStoreFactory<S | Nothing>(NOTHING);
+  const factory = createStoreFactory<S | undefined>(undefined);
   const root = factory({ keyPath: [], lens: basicLens() });
 
   function resolve(sync?: false): Promise<DeferredObservable>;
@@ -172,7 +80,7 @@ export const createAsyncStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, inp
 
   const subscribers = new SubscriptionGraph();
 
-  return <A>(focus: LensFocus<S | Nothing, A>): Store<A> => {
+  return <A>(focus: LensFocus<S | undefined, A>): Store<A> => {
     const store = factory(focus);
 
     return {
@@ -181,7 +89,7 @@ export const createAsyncStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, inp
           const observable = resolve(true);
           const latest = root.getSnapshot(opts);
 
-          if (latest === NOTHING) {
+          if (latest === undefined) {
             throw observable.onResolved;
           }
 
