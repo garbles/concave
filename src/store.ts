@@ -21,7 +21,7 @@ export type Store<A> = {
   update(updater: Updater<A>): boolean;
 };
 
-export function createStoreFactory<S>(): StoreFactory<S | undefined>;
+export function createStoreFactory<S>(): StoreFactory<S | void>;
 export function createStoreFactory<S>(initialState: S): StoreFactory<S>;
 export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
   const subscribers = new SubscriptionGraph();
@@ -70,6 +70,10 @@ export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
       update(updater) {
         const prev = resolved ? lens.get(snapshot) : undefined;
         const next = updater(prev as any);
+
+        if (next === undefined) {
+          throw new Error("Store.update cannot return undefined");
+        }
 
         /**
          * If the next value _is_ the previous snapshot then do nothing.

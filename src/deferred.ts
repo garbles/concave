@@ -10,12 +10,12 @@ type DeferredObservable = {
 
 export type Deferred<S, I> = {
   [IS_DEFFERED]: unknown;
-  resolve(store: Store<S | undefined>, input: I): DeferredObservable;
+  resolve(store: Store<S | void>, input: I): DeferredObservable;
 };
 
-export const deferred = <S, I>(fn: (store: Store<S | undefined>, input: I) => Unsubscribe): Deferred<S, I> => {
+export const deferred = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubscribe | void): Deferred<S, I> => {
   type ObservableMap = { [cacheKey: string]: DeferredObservable };
-  const cache = new WeakMap<Store<S | undefined>, ObservableMap>();
+  const cache = new WeakMap<Store<S | void>, ObservableMap>();
 
   return {
     [IS_DEFFERED]: true,
@@ -45,7 +45,7 @@ export const deferred = <S, I>(fn: (store: Store<S | undefined>, input: I) => Un
           }
 
           connected = true;
-          unsubscribe = fn(store, input);
+          unsubscribe = fn(store, input) ?? (() => {});
         },
 
         disconnect() {
