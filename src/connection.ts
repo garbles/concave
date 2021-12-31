@@ -37,7 +37,7 @@ export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsub
         mapCache.set(store, map);
       }
 
-      const cacheKey = JSON.stringify(input);
+      const cacheKey = JSON.stringify(input ?? "");
       let observable = map[cacheKey];
 
       if (observable) {
@@ -53,11 +53,7 @@ export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsub
           }
 
           const unsubscribe = fn(store, input) ?? (() => {});
-
-          state = {
-            connected: true,
-            unsubscribe,
-          };
+          state = { connected: true, unsubscribe };
         },
 
         disconnect() {
@@ -66,11 +62,7 @@ export const connection = <S, I>(fn: (store: Store<S | void>, input: I) => Unsub
           }
 
           const unsubscribe = state.unsubscribe;
-
-          state = {
-            connected: false,
-          };
-
+          state = { connected: false };
           unsubscribe();
         },
       };

@@ -107,13 +107,13 @@ describe("sync store", () => {
     const factory = createStoreFactory<number>();
     const store = factory(noFocus);
 
-    expect(() => store.update(() => undefined)).toThrowError();
+    expect(store.update(() => undefined)).rejects.toEqual(new Error("Store.update cannot return undefined"));
 
     store.update(() => 1);
     store.update(() => 2);
     store.update(() => 3);
 
-    expect(() => store.update(() => undefined)).toThrowError();
+    expect(store.update(() => undefined)).rejects.toEqual(new Error("Store.update cannot return undefined"));
   });
 });
 
@@ -197,19 +197,17 @@ describe("async store", () => {
 
     const [connStore, syncStore] = setup(conn1, undefined);
 
-    const unsubscribe1 = connStore.subscribe(() => {});
+    const unsubscribe = connStore.subscribe(() => {});
     await tick();
 
-    expect(connStore.getSnapshot()).toEqual(1);
+    expect(await connStore.getSnapshot({ sync: false })).toEqual(1);
 
-    unsubscribe1();
-    syncStore.update(() => conn2);
-
-    const unsubscribe2 = connStore.subscribe(() => {});
+    await syncStore.update(() => conn2);
     await tick();
 
     expect(connStore.getSnapshot()).toEqual(100);
-    unsubscribe2();
+
+    unsubscribe();
   });
 
   test.todo("can be updated from outside");

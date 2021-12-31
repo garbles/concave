@@ -10,6 +10,8 @@ type LensFocus<S, A> = {
 
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
+type ParentSubscriptionState = { subscribed: false } | { subscribed: true; unsubscribe: Unsubscribe };
+
 interface GetSnapshot<A> {
   (opts?: { sync: true }): A;
   (opts: { sync: false }): Promise<A>;
@@ -18,7 +20,7 @@ interface GetSnapshot<A> {
 export type Store<A> = {
   getSnapshot: GetSnapshot<A>;
   subscribe(onStoreChange: Listener): Unsubscribe;
-  update(updater: Updater<A>): boolean;
+  update(updater: Updater<A>): Promise<boolean>;
 };
 
 export function createStoreFactory<S>(): StoreFactory<S | void>;
@@ -71,7 +73,7 @@ export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
       subscribe(listener) {
         return subscribers.subscribe(keyPath, listener);
       },
-      update(updater) {
+      async update(updater) {
         const prev = resolved ? lens.get(snapshot) : undefined;
         const next = updater(prev as any);
 
@@ -101,16 +103,16 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
   const subscribers = new SubscriptionGraph();
   const root = factory({ keyPath: [], lens: basicLens() });
 
-  root.subscribe(() => subscribers.notify([]));
-
   /**
-   * This is lazy because the underlying data may change on every call to `parent.getSnapshot()`
+   * This is lazy because the underlying data may change on every call to `parent.getSnapshot()`.
    */
   const getConnection = () =>
     parent
       .getSnapshot({ sync: false })
       .then(derefConnection)
       .then((conn) => conn(root, input));
+
+  let parentSubscriptionState: ParentSubscriptionState = { subscribed: false };
 
   return (focus) => {
     const store = factory(focus);
@@ -119,9 +121,30 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
       ...store,
 
       subscribe(listener) {
-        const unsubscribe = subscribers.subscribe(focus.keyPath, listener);
+        if (parentSubscriptionState.subscribed === false) {
+          let prev = getConnection();
+
+          const parentUnsubscribe = parent.subscribe(async () => {
+            const next = getConnection();
+
+            const [prevConn, nextConn] = await Promise.all([prev, next]);
+
+            if (prevConn !== nextConn) {
+              prevConn.disconnect();
+              nextConn.connect();
+              prev = next;
+            }
+          });
+
+          parentSubscriptionState = {
+            subscribed: true,
+            unsubscribe: parentUnsubscribe,
+          };
+        }
 
         getConnection().then((conn) => conn.connect());
+
+        const unsubscribe = subscribers.subscribe(focus.keyPath, listener);
 
         return async () => {
           unsubscribe();
@@ -130,6 +153,12 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
 
           if (subscribers.size === 0) {
             conn.disconnect();
+
+            if (parentSubscriptionState.subscribed) {
+              const parentUnsubscribe = parentSubscriptionState.unsubscribe;
+              parentSubscriptionState = { subscribed: false };
+              parentUnsubscribe();
+            }
           }
         };
       },
