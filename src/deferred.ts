@@ -1,14 +1,15 @@
 import { Store } from "./store";
 import { Unsubscribe } from "./types";
 
-export type DeferredObservable = {
-  resolved: boolean;
-  onResolved: Promise<unknown>;
+const IS_DEFFERED = Symbol();
+
+type DeferredObservable = {
   connect(): void;
   disconnect(): void;
 };
 
 export type Deferred<S, I> = {
+  [IS_DEFFERED]: unknown;
   resolve(store: Store<S | undefined>, input: I): DeferredObservable;
 };
 
@@ -17,7 +18,9 @@ export const deferred = <S, I>(fn: (store: Store<S | undefined>, input: I) => Un
   const cache = new WeakMap<Store<S | undefined>, ObservableMap>();
 
   return {
-    resolve(store: Store<S | undefined>, input: I): DeferredObservable {
+    [IS_DEFFERED]: true,
+
+    resolve(store, input) {
       const cacheKey = JSON.stringify(input);
       let map = cache.get(store);
 
@@ -33,48 +36,16 @@ export const deferred = <S, I>(fn: (store: Store<S | undefined>, input: I) => Un
       }
 
       let connected = false;
-      let resolved = false;
       let unsubscribe: Unsubscribe;
 
-      let resolve = () => {
-        resolved = true;
-      };
-
-      const onResolved = new Promise<void>((res) => {
-        resolve = () => {
-          resolved = true;
-          res();
-        };
-
-        if (resolved) {
-          resolve();
-        }
-      });
-
-      const wrapper: Store<S | undefined> = {
-        ...store,
-        update(updater) {
-          resolve();
-          return store.update(updater);
-        },
-      };
-
       return {
-        get resolved() {
-          return resolved;
-        },
-
-        get onResolved() {
-          return onResolved;
-        },
-
         connect() {
           if (connected) {
             return;
           }
 
           connected = true;
-          unsubscribe = fn(wrapper, input);
+          unsubscribe = fn(store, input);
         },
 
         disconnect() {
@@ -89,3 +60,11 @@ export const deferred = <S, I>(fn: (store: Store<S | undefined>, input: I) => Un
     },
   };
 };
+
+export function assertIsDeferred<S, I>(obj: any): asserts obj is Deferred<S, I> {
+  if (Reflect.has(obj, IS_DEFFERED) && Reflect.has(obj, "resolve") && obj.resolve.length === 2) {
+    return;
+  }
+
+  throw new Error("Unexpected Error");
+}

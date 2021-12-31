@@ -1,5 +1,5 @@
 import { basicLens, BasicLens } from "./basic-lens";
-import { Deferred, DeferredObservable } from "./deferred";
+import { assertIsDeferred, Deferred } from "./deferred";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -19,30 +19,57 @@ export type Store<A> = {
   getSnapshot: GetSnapshot<A>;
   subscribe(onStoreChange: Listener): Unsubscribe;
   update(updater: Updater<A>): boolean;
-  size: number;
 };
 
-export const createStoreFactory = <S>(initialState: S): StoreFactory<S> => {
+export function createStoreFactory<S>(): StoreFactory<S | undefined>;
+export function createStoreFactory<S>(initialState: S): StoreFactory<S>;
+export function createStoreFactory<S>(initialState?: S): StoreFactory<S> {
   const subscribers = new SubscriptionGraph();
-  let snapshot = initialState;
+  let snapshot: S;
+  let resolved: boolean;
+
+  if (initialState !== undefined) {
+    snapshot = initialState;
+    resolved = true;
+  } else {
+    resolved = false;
+  }
+
+  let resolve = () => {
+    resolved = true;
+  };
+
+  const onResolved = new Promise<void>((res) => {
+    resolve = () => {
+      resolved = true;
+      res();
+      resolve = () => {};
+    };
+
+    if (resolved) {
+      resolve();
+    }
+  });
 
   return ({ keyPath, lens }) => {
     return {
       getSnapshot(opts = { sync: true }) {
-        const value = lens.get(snapshot);
-
         if (opts.sync) {
-          return value as any;
-        } else {
-          return Promise.resolve(value);
+          if (resolved) {
+            return lens.get(snapshot) as any;
+          } else {
+            throw onResolved;
+          }
         }
+
+        return onResolved.then(() => lens.get(snapshot));
       },
       subscribe(listener) {
         return subscribers.subscribe(keyPath, listener);
       },
       update(updater) {
-        const prev = lens.get(snapshot);
-        const next = updater(prev);
+        const prev = resolved ? lens.get(snapshot) : undefined;
+        const next = updater(prev as any);
 
         /**
          * If the next value _is_ the previous snapshot then do nothing.
@@ -52,84 +79,51 @@ export const createStoreFactory = <S>(initialState: S): StoreFactory<S> => {
         }
 
         snapshot = lens.set(snapshot, next);
+        resolve();
         subscribers.notify(keyPath);
 
         return true;
       },
-      get size() {
-        return subscribers.size;
-      },
     };
   };
-};
+}
 
-export const createAsyncStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, input: I): StoreFactory<S> => {
-  const factory = createStoreFactory<S | undefined>(undefined);
+export const createDeferredStoreFactory = <S, I>(parent: Store<Deferred<S, I>>, input: I): StoreFactory<S> => {
+  const factory = createStoreFactory<S>();
+  const subscribers = new SubscriptionGraph();
   const root = factory({ keyPath: [], lens: basicLens() });
 
-  function resolve(sync?: false): Promise<DeferredObservable>;
-  function resolve(sync: true): DeferredObservable;
-  function resolve(sync: boolean = false) {
-    if (sync === true) {
-      const deferred = parent.getSnapshot({ sync: true });
+  root.subscribe(() => subscribers.notify([]));
+
+  /**
+   * This is lazy because the underlying data may change.
+   */
+  const getObservable = () =>
+    parent.getSnapshot({ sync: false }).then((deferred) => {
+      assertIsDeferred<S, I>(deferred);
       return deferred.resolve(root, input);
-    } else {
-      return parent.getSnapshot({ sync: false }).then((deferred) => deferred.resolve(root, input));
-    }
-  }
+    });
 
-  const subscribers = new SubscriptionGraph();
-
-  return <A>(focus: LensFocus<S | undefined, A>): Store<A> => {
+  return (focus) => {
     const store = factory(focus);
 
     return {
-      getSnapshot(opts = { sync: true }) {
-        if (opts.sync === true) {
-          const observable = resolve(true);
-          const latest = root.getSnapshot(opts);
-
-          if (latest === undefined) {
-            throw observable.onResolved;
-          }
-
-          return store.getSnapshot(opts) as any;
-        }
-
-        resolve().then(async (observable) => {
-          await observable.onResolved;
-          return store.getSnapshot(opts);
-        });
-      },
+      ...store,
 
       subscribe(listener) {
         const unsubscribe = subscribers.subscribe(focus.keyPath, listener);
 
-        resolve().then((observable) => observable.connect());
+        getObservable().then((observable) => observable.connect());
 
         return async () => {
           unsubscribe();
 
-          const observable = await resolve();
+          const observable = await getObservable();
 
           if (subscribers.size === 0) {
             observable.disconnect();
           }
         };
-      },
-
-      update(updater) {
-        const isChanged = store.update(updater);
-
-        if (isChanged) {
-          subscribers.notify(focus.keyPath);
-        }
-
-        return isChanged;
-      },
-
-      get size() {
-        return subscribers.size;
       },
     };
   };
