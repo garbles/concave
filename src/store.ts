@@ -114,6 +114,41 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
 
   let parentSubscriptionState: ParentSubscriptionState = { subscribed: false };
 
+  const subscribeToParent = () => {
+    if (parentSubscriptionState.subscribed === true) {
+      return;
+    }
+
+    let prev = getConnection();
+
+    const parentUnsubscribe = parent.subscribe(async () => {
+      const next = getConnection();
+
+      const [prevConn, nextConn] = await Promise.all([prev, next]);
+
+      if (prevConn !== nextConn) {
+        prevConn.disconnect();
+        nextConn.connect();
+        prev = next;
+      }
+    });
+
+    parentSubscriptionState = {
+      subscribed: true,
+      unsubscribe: parentUnsubscribe,
+    };
+  };
+
+  const unsubscribeFromParent = () => {
+    if (parentSubscriptionState.subscribed === false) {
+      return;
+    }
+
+    const parentUnsubscribe = parentSubscriptionState.unsubscribe;
+    parentSubscriptionState = { subscribed: false };
+    parentUnsubscribe();
+  };
+
   return (focus) => {
     const store = factory(focus);
 
@@ -121,26 +156,7 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
       ...store,
 
       subscribe(listener) {
-        if (parentSubscriptionState.subscribed === false) {
-          let prev = getConnection();
-
-          const parentUnsubscribe = parent.subscribe(async () => {
-            const next = getConnection();
-
-            const [prevConn, nextConn] = await Promise.all([prev, next]);
-
-            if (prevConn !== nextConn) {
-              prevConn.disconnect();
-              nextConn.connect();
-              prev = next;
-            }
-          });
-
-          parentSubscriptionState = {
-            subscribed: true,
-            unsubscribe: parentUnsubscribe,
-          };
-        }
+        subscribeToParent();
 
         getConnection().then((conn) => conn.connect());
 
@@ -153,12 +169,7 @@ export const createConnectionStoreFactory = <S, I>(parent: Store<Connection<S, I
 
           if (subscribers.size === 0) {
             conn.disconnect();
-
-            if (parentSubscriptionState.subscribed) {
-              const parentUnsubscribe = parentSubscriptionState.unsubscribe;
-              parentSubscriptionState = { subscribed: false };
-              parentUnsubscribe();
-            }
+            unsubscribeFromParent();
           }
         };
       },
