@@ -121,13 +121,14 @@ describe("async store", () => {
   const setup = <S, I>(def: Connection<S, I>, input: I) => {
     const syncFactory = createStoreFactory(def);
     const syncStore = syncFactory(noFocus);
-    const connectionFactory = createConnectionStoreFactory(syncStore, input);
+    const connFactory = createConnectionStoreFactory(syncStore, input);
+    const connStore = connFactory(noFocus);
 
-    return connectionFactory(noFocus);
+    return [connStore, syncStore];
   };
 
   test("creates an async store", async () => {
-    const store = setup(
+    const [store] = setup(
       connection<number, number>((store, input) => {
         store.update(() => input + 10);
       }),
@@ -145,7 +146,7 @@ describe("async store", () => {
   test("async store does not resolve unless it is subscribed to", async () => {
     const callback = jest.fn();
 
-    const store = setup(connection<number, number>(callback), 1);
+    const [store] = setup(connection<number, number>(callback), 1);
 
     expect(callback).not.toHaveBeenCalled();
 
@@ -171,7 +172,7 @@ describe("async store", () => {
   test("async store first update call is passed undefined always", () => {
     expect.hasAssertions();
 
-    const store = setup(
+    const [store] = setup(
       connection<number, number>((store, input) => {
         store.update((prev) => {
           expect(prev).toBeUndefined();
@@ -185,10 +186,35 @@ describe("async store", () => {
     store.subscribe(() => {})();
   });
 
+  test("disconnects properly when the underlying data changes", async () => {
+    const conn1 = connection<number, void>((store) => {
+      store.update(() => 1);
+    });
+
+    const conn2 = connection<number, void>((store) => {
+      store.update(() => 100);
+    });
+
+    const [connStore, syncStore] = setup(conn1, undefined);
+
+    const unsubscribe1 = connStore.subscribe(() => {});
+    await tick();
+
+    expect(connStore.getSnapshot()).toEqual(1);
+
+    unsubscribe1();
+    syncStore.update(() => conn2);
+
+    const unsubscribe2 = connStore.subscribe(() => {});
+    await tick();
+
+    expect(connStore.getSnapshot()).toEqual(100);
+    unsubscribe2();
+  });
+
   test.todo("can be updated from outside");
   test.todo("can listen to changes on the inside and react to them");
   test.todo("disconnects and calls clean up function after all listeners are removed");
   test.todo("walking keypath resolves as you would expect");
   test.todo("can synchronously resolve a value from the store after at least one value has been resolved");
-  test.todo("disconnects properly when the underlying data changes");
 });
