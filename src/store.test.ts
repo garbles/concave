@@ -9,6 +9,8 @@ type State = {
 
 const noFocus = { keyPath: [], lens: basicLens<any>() };
 
+const tick = () => new Promise((r) => setTimeout(r));
+
 describe("sync store", () => {
   test("triggers one call to listeners per call", () => {
     const factory = createStoreFactory<State>({ a: 0, b: 0 });
@@ -52,6 +54,17 @@ describe("sync store", () => {
     }
   });
 
+  test("can synchronously resolve a value from the store after at least one value has been resolved", () => {
+    const factory = createStoreFactory<number>();
+    const store = factory(noFocus);
+
+    expect(() => store.getSnapshot()).toThrow();
+
+    store.update(() => 1);
+
+    expect(() => store.getSnapshot()).not.toThrow();
+  });
+
   test("when factory is initialized with no state, it does not resolve on async getSnapshot", () => {
     jest.useFakeTimers();
 
@@ -79,6 +92,12 @@ describe("sync store", () => {
 
     store.update((prev) => {
       expect(prev).toBeUndefined();
+
+      return 1;
+    });
+
+    store.update((prev) => {
+      expect(prev).toBe(1);
 
       return 1;
     });
@@ -123,9 +142,52 @@ describe("async store", () => {
     unsubscribe();
   });
 
-  test.todo("async store does not resolve unless it is subscribed to");
-  test.todo("async store first update call is passed undefined always");
+  test("async store does not resolve unless it is subscribed to", async () => {
+    const callback = jest.fn();
+
+    const store = setup(deferred<number, number>(callback), 1);
+
+    expect(callback).not.toHaveBeenCalled();
+
+    const unsubscribe1 = store.subscribe(() => {});
+
+    await tick();
+
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    unsubscribe1();
+
+    await tick();
+
+    const unsubscribe2 = store.subscribe(() => {});
+
+    await tick();
+
+    expect(callback).toHaveBeenCalledTimes(2);
+
+    unsubscribe2();
+  });
+
+  test("async store first update call is passed undefined always", () => {
+    expect.hasAssertions();
+
+    const store = setup(
+      deferred<number, number>((store, input) => {
+        store.update((prev) => {
+          expect(prev).toBeUndefined();
+
+          return 2;
+        });
+      }),
+      1
+    );
+
+    store.subscribe(() => {})();
+  });
+
   test.todo("can be updated from outside");
   test.todo("can listen to changes on the inside and react to them");
+  test.todo("disconnects and calls clean up function after all listeners are removed");
   test.todo("walking keypath resolves as you would expect");
+  test.todo("can synchronously resolve a value from the store after at least one value has been resolved");
 });

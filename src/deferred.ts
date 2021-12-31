@@ -8,6 +8,8 @@ type DeferredObservable = {
   disconnect(): void;
 };
 
+type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
+
 export type Deferred<S, I> = {
   [IS_DEFFERED]: unknown;
   resolve(store: Store<S | void>, input: I): DeferredObservable;
@@ -35,28 +37,38 @@ export const deferred = <S, I>(fn: (store: Store<S | void>, input: I) => Unsubsc
         return observable;
       }
 
-      let connected = false;
-      let unsubscribe: Unsubscribe;
+      let state: State = { connected: false };
 
-      return {
+      map[cacheKey] = observable = {
         connect() {
-          if (connected) {
+          if (state.connected) {
             return;
           }
 
-          connected = true;
-          unsubscribe = fn(store, input) ?? (() => {});
+          const unsubscribe = fn(store, input) ?? (() => {});
+
+          state = {
+            connected: true,
+            unsubscribe,
+          };
         },
 
         disconnect() {
-          if (!connected) {
+          if (!state.connected) {
             return;
           }
 
-          connected = false;
+          const unsubscribe = state.unsubscribe;
+
+          state = {
+            connected: false,
+          };
+
           unsubscribe();
         },
       };
+
+      return observable;
     },
   };
 };
