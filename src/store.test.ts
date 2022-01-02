@@ -200,7 +200,7 @@ describe("async store", () => {
     const unsubscribe = connStore.subscribe(() => {});
     await tick();
 
-    expect(await connStore.getSnapshot({ sync: false })).toEqual(1);
+    expect(connStore.getSnapshot()).toEqual(1);
 
     await syncStore.update(() => conn2);
     await tick();
@@ -215,4 +215,8 @@ describe("async store", () => {
   test.todo("disconnects and calls clean up function after all listeners are removed");
   test.todo("walking keypath resolves as you would expect");
   test.todo("can synchronously resolve a value from the store after at least one value has been resolved");
+  test.todo("allows nested connections");
+  test.todo("notifies the parent store");
+  test.todo("parent store will access child as a promise");
+  test.todo("throws a promise if you access for the proxy lens");
 });
