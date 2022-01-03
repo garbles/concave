@@ -1,7 +1,12 @@
 import { BasicLens, prop } from "./basic-lens";
 import { keyPathToString } from "./key-path-to-string";
+import { doNotShallowCopy } from "./shallow-copy";
 import { Store, StoreFactory } from "./store";
 import { Key, Unsubscribe } from "./types";
+
+const IS_CONNECTION = Symbol();
+
+type Clear = () => void;
 
 type LensFocus<S, A> = {
   keyPath: Key[];
@@ -10,32 +15,33 @@ type LensFocus<S, A> = {
 
 type ConnectionState = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-type ConnectionResolution<S> =
+type ConnectionResolution<A> =
   | { status: "loading"; onReady: Promise<unknown>; ready(): void }
-  | { status: "resolved"; value: S };
+  | { status: "resolved"; value: A };
 
-type ConnectionEntry<S> = {
+type ConnectionEntry<A> = {
   connect(): void;
   disconnect(): void;
-  resolution: ConnectionResolution<S>;
+  resolution: ConnectionResolution<A>;
 };
 
-type ConnectionCache<S> = {
-  [cacheKey: string]: ConnectionEntry<S>;
+type ConnectionCache<A> = {
+  [cacheKey: string]: ConnectionEntry<A>;
 };
 
-type ValueCache<S> = {
-  [cacheKey: string]: S;
+type ValueCache<A> = {
+  [cacheKey: string]: A;
 };
 
-type InsertConnection<S, A, I> = (
-  factory: StoreFactory<S>,
-  focus: LensFocus<S, Connection<S, A, I>>,
+type InsertConnection<A, I> = (
+  factory: StoreFactory<any>,
+  focus: LensFocus<any, Connection<A, I>>,
   input: I
 ) => ConnectionEntry<A>;
 
-export type Connection<S, A, I> = {
-  insert: InsertConnection<S, A, I>;
+export type Connection<A, I = void> = {
+  [IS_CONNECTION]: true;
+  insert: InsertConnection<A, I>;
   cache: ValueCache<A>;
 };
 
@@ -46,36 +52,28 @@ const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): Len
   };
 };
 
-export const connection = <S, A, I>(
-  create: (store: Store<A | void>, input: I) => Unsubscribe | void
-): Connection<S, A, I> => {
-  const cache: ConnectionCache<A> = {};
+export const connection = <A, I>(
+  create: (store: Store<A | void>, input: I, clear: Clear) => Unsubscribe | void
+): Connection<A, I> => {
+  const connectionCache: ConnectionCache<A> = {};
 
-  const resolveConnection: InsertConnection<S, A, I> = (factory, focus, input) => {
+  const insert: InsertConnection<A, I> = (factory, focus, input) => {
     const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
     const nextFocus = focusProp(focusProp(focus, "cache"), cacheKey);
     const store = factory(nextFocus);
 
-    let conn = cache[cacheKey];
-
-    if (conn) {
-      return conn;
+    if (cacheKey in connectionCache) {
+      return connectionCache[cacheKey];
     }
 
     let state: ConnectionState = { connected: false };
-
-    let ready = () => {};
-
-    let onReady = new Promise<void>((res) => {
-      ready = res;
-    });
 
     const connect = () => {
       if (state.connected) {
         return;
       }
 
-      const unsubscribe = create(store, input) ?? (() => {});
+      const unsubscribe = create(store, input, clear) ?? (() => {});
       state = { connected: true, unsubscribe };
     };
 
@@ -89,29 +87,49 @@ export const connection = <S, A, I>(
       unsubscribe();
     };
 
-    const resolution: ConnectionResolution<S> = {
-      status: "loading",
-      get ready() {
-        return ready;
-      },
-      onReady,
+    const clear = () => {
+      let ready = () => {};
+
+      let onReady = new Promise<void>((res) => {
+        ready = res;
+      });
+
+      const resolution: ConnectionResolution<A> = {
+        status: "loading",
+        get ready() {
+          return ready;
+        },
+        get onReady() {
+          return onReady;
+        },
+      };
+
+      connectionCache[cacheKey] = {
+        connect,
+        disconnect,
+        resolution,
+      };
     };
 
-    conn = cache[cacheKey] = {
-      connect,
-      disconnect,
-      resolution,
-    };
+    clear();
 
-    return conn;
+    return connectionCache[cacheKey];
   };
 
   /**
    * Wrap the real cache to handle suspense.
    */
-  const cacheProxy = new Proxy({} as ValueCache<A>, {
+  const cache = new Proxy({} as ValueCache<A>, {
+    has(target, key) {
+      if (key === doNotShallowCopy) {
+        return true;
+      }
+
+      return Reflect.has(target, key);
+    },
+
     get(_target, key): A {
-      const cached = cache[key as string];
+      const cached = connectionCache[key as string];
 
       /**
        * If the value is not cached, then throw an error.
@@ -137,7 +155,7 @@ export const connection = <S, A, I>(
     },
 
     set(_target, key, value) {
-      const cached = cache[key as string];
+      const cached = connectionCache[key as string];
 
       /**
        * If the value is not cached then return false.
@@ -168,7 +186,16 @@ export const connection = <S, A, I>(
   });
 
   return {
-    insert: resolveConnection,
-    cache: cacheProxy,
+    [IS_CONNECTION]: true,
+    insert,
+    cache,
   };
 };
+
+export function assertIsConnection<A, I>(obj: any): asserts obj is Connection<A, I> {
+  if (Reflect.has(obj, IS_CONNECTION)) {
+    return;
+  }
+
+  throw new Error("Unexpected Error");
+}

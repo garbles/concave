@@ -1,5 +1,5 @@
 import { BasicLens } from "./basic-lens";
-import { Connection } from "./connection";
+import { assertIsConnection, Connection } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -65,8 +65,23 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
   };
 };
 
-const createConnectionStoreFactory = <S, A>(factory: StoreFactory<S>): StoreFactory<S> => {
+export const createConnectionStoreFactory = <S, A, I>(
+  factory: StoreFactory<S>,
+  connFocus: LensFocus<S, Connection<A, I>>,
+  input: I
+): StoreFactory<S> => {
   let listeners = 0;
+  const connStore = factory(connFocus);
+
+  /**
+   * This is lazy so that we never need to recreate the factory/lens
+   * while the underlying data may change.
+   */
+  const getConnection = async () => {
+    const conn = await connStore.getSnapshot({ sync: false });
+    assertIsConnection<A, I>(conn);
+    return conn.insert(factory, connFocus, input);
+  };
 
   return (focus) => {
     const store = factory(focus);
@@ -77,8 +92,18 @@ const createConnectionStoreFactory = <S, A>(factory: StoreFactory<S>): StoreFact
         const unsubscribe = store.subscribe(listener);
         listeners += 1;
 
-        return () => {
+        getConnection().then((conn) => conn.connect());
+
+        return async () => {
           unsubscribe();
+
+          const conn = await getConnection();
+
+          listeners = Math.max(listeners - 1, 0);
+
+          if (listeners <= 0) {
+            conn.disconnect();
+          }
         };
       },
     };

@@ -1,6 +1,12 @@
 import { isObject } from "./is-object";
 
-export const shallowCopy = <T>(obj: T): T => {
+export const doNotShallowCopy = Symbol("Do not shallow copy");
+
+export const shallowCopy = <T extends {}>(obj: T): T => {
+  if (Reflect.has(obj, doNotShallowCopy)) {
+    return obj;
+  }
+
   /**
    * Need to do this check to ensure that referential
    * equality will only break a single key in the object/array.

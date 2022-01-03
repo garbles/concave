@@ -1,11 +1,12 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
+import { Connection } from "./connection";
 import { keyPathToString } from "./key-path-to-string";
 import { ProxyValue } from "./proxy-value";
 import { createUseLens } from "./react";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
-import { Store } from "./store";
-import { AnyArray, AnyObject, AnyPrimitive, Key, Update } from "./types";
+import { createConnectionStoreFactory, Store } from "./store";
+import { AnyArray, AnyConnection, AnyObject, AnyPrimitive, Key, Update } from "./types";
 
 type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
@@ -39,14 +40,18 @@ type BaseProxyLens<A> = {
   $key: string;
 };
 
+type ConnectionProxyLens<A> = BaseProxyLens<A> &
+  (A extends Connection<infer B, infer I> ? (input: I) => ProxyLens<B> : {});
+
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
 type ObjectProxyLens<A extends AnyObject> = BaseProxyLens<A> & { [K in keyof A]: ProxyLens<A[K]> };
 type PrimitiveProxyLens<A extends AnyPrimitive> = BaseProxyLens<A>;
 
 // prettier-ignore
 export type ProxyLens<A> =
-  A extends AnyArray ? ArrayProxyLens<A> :
+  A extends AnyConnection ? ConnectionProxyLens<A> :
   A extends AnyObject ? ObjectProxyLens<A> :
+  A extends AnyArray ? ArrayProxyLens<A> :
   A extends AnyPrimitive ? PrimitiveProxyLens<A> :
   never;
 
@@ -69,6 +74,14 @@ export const proxyLens = <S, A>(
   type Target = Partial<BaseProxyLens<A> & { cache: KeyCache }>;
 
   const proxy = new Proxy({} as Target, {
+    apply(_target, _thisArg, argsArray) {
+      const [input] = argsArray;
+      const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
+      const connectionFactory = createConnectionStoreFactory(storeFactory, focus as any, input);
+      const nextFocus = focusProp(focusProp(focus as any, "cache" as never), cacheKey) as any;
+      return proxyLens(connectionFactory, nextFocus);
+    },
+
     get(target, key) {
       /**
        * Block React introspection as it will otherwise produce an infinite chain of
