@@ -6,4 +6,4 @@ export type JSON = AnyArray | AnyObject | AnyPrimitive;
 export type Listener = () => void;
 export type Unsubscribe = () => void;
 export type Updater<A> = (a: A) => A;
-export type Update<A> = (fn: Updater<A>) => void;
+export type Update<A> = (updater: Updater<A>) => void;

@@ -1,4 +1,5 @@
 import { BasicLens } from "./basic-lens";
+import { Connection } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe, Updater } from "./types";
 
@@ -7,7 +8,7 @@ type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
 };
 
-type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
+export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
 interface GetSnapshot<A> {
   (opts?: { sync: true }): A;
@@ -17,7 +18,7 @@ interface GetSnapshot<A> {
 export type Store<A> = {
   getSnapshot: GetSnapshot<A>;
   subscribe(onStoreChange: Listener): Unsubscribe;
-  update(updater: Updater<A>): void;
+  update(updater: Updater<A>): boolean;
 };
 
 export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
@@ -27,12 +28,18 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
   return ({ keyPath, lens }) => {
     return {
       getSnapshot(opts = { sync: true }) {
-        const value = lens.get(snapshot);
-
         if (opts.sync) {
-          return value as any;
-        } else {
-          return Promise.resolve(value);
+          return lens.get(snapshot);
+        }
+
+        try {
+          return lens.get(snapshot);
+        } catch (obj) {
+          if (obj instanceof Promise) {
+            return obj as any;
+          }
+
+          throw obj;
         }
       },
       subscribe(listener) {
@@ -46,11 +53,33 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
          * If the next value _is_ the previous snapshot then do nothing.
          */
         if (Object.is(next, prev)) {
-          return;
+          return false;
         }
 
         snapshot = lens.set(snapshot, next);
         graph.notify(keyPath);
+
+        return true;
+      },
+    };
+  };
+};
+
+const createConnectionStoreFactory = <S, A>(factory: StoreFactory<S>): StoreFactory<S> => {
+  let listeners = 0;
+
+  return (focus) => {
+    const store = factory(focus);
+
+    return {
+      ...store,
+      subscribe(listener) {
+        const unsubscribe = store.subscribe(listener);
+        listeners += 1;
+
+        return () => {
+          unsubscribe();
+        };
       },
     };
   };
