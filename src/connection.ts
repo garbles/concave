@@ -4,6 +4,10 @@ import { doNotShallowCopy } from "./shallow-copy";
 import { Store, StoreFactory } from "./store";
 import { Key, Unsubscribe } from "./types";
 
+/**
+ * Use this unique symbol to make checking for a connection easier. Anything
+ * conceivably use `insert` and `cache` as keys, so just check for this non-enumerable unique key instead.
+ */
 const IS_CONNECTION = Symbol();
 
 type Clear = () => void;
@@ -16,8 +20,15 @@ type LensFocus<S, A> = {
 type ConnectionState = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 type ConnectionResolution<A> =
-  | { status: "loading"; onReady: Promise<unknown>; ready(): void }
-  | { status: "resolved"; value: A };
+  /**
+   * GABE: here. need to have `unresolved` type.
+   *
+   * - need to move connect/disconnect into all of them.
+   * - on unresolved, connect()/disconnect() just needs to wait until it's in a loading state and
+   *   then transition or something
+   */
+
+  { status: "loading"; onReady: Promise<unknown>; ready(): void } | { status: "resolved"; value: A };
 
 type ConnectionEntry<A> = {
   connect(): void;
@@ -52,7 +63,7 @@ const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): Len
   };
 };
 
-export const connection = <A, I>(
+export const connection = <A, I = void>(
   create: (store: Store<A | void>, input: I, clear: Clear) => Unsubscribe | void
 ): Connection<A, I> => {
   const connectionCache: ConnectionCache<A> = {};
@@ -62,6 +73,7 @@ export const connection = <A, I>(
     const nextFocus = focusProp(focusProp(focus, "cache"), cacheKey);
     const store = factory(nextFocus);
 
+    // GABE: need to check whether the connection is in the store and "unresolved"
     if (cacheKey in connectionCache) {
       return connectionCache[cacheKey];
     }
@@ -121,11 +133,19 @@ export const connection = <A, I>(
    */
   const cache = new Proxy({} as ValueCache<A>, {
     has(target, key) {
+      /**
+       * Do not copy this object on update because it's a proxy facade around the real data.
+       * shallowCopy checks for this key
+       */
       if (key === doNotShallowCopy) {
         return true;
       }
 
-      return Reflect.has(target, key);
+      return false;
+    },
+
+    ownKeys() {
+      return [doNotShallowCopy];
     },
 
     get(_target, key): A {
@@ -137,6 +157,7 @@ export const connection = <A, I>(
        * to manually inspect the cache.
        */
       if (!cached) {
+        // GABE: need to insert an unresolved value in here
         throw new Error("Unexpected Error");
       }
 
@@ -144,7 +165,8 @@ export const connection = <A, I>(
        * If the cached object is still loading then
        * throw the `onReady` promise.
        */
-      if (cached.resolution.status === "loading") {
+      if (cached.resolution.status !== "resolved") {
+        // GABE: need to insert an unresolved value in here
         throw cached.resolution.onReady;
       }
 
@@ -165,8 +187,8 @@ export const connection = <A, I>(
       }
 
       /**
-       * Prep the `ready` callback before transitioning the resolution
-       * status to resolved.
+       * Prep the `ready` callback before transitioning the
+       * resolution status to resolved.
        */
       let ready = () => {};
 
@@ -185,11 +207,16 @@ export const connection = <A, I>(
     },
   });
 
-  return {
-    [IS_CONNECTION]: true,
-    insert,
-    cache,
-  };
+  const conn = Object.create({ insert, cache }) as Connection<A, I>;
+
+  Object.defineProperty(conn, IS_CONNECTION, {
+    configurable: true,
+    enumerable: false,
+    writable: false,
+    value: true,
+  });
+
+  return conn;
 };
 
 export function assertIsConnection<A, I>(obj: any): asserts obj is Connection<A, I> {

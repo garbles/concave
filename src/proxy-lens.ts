@@ -41,7 +41,7 @@ type BaseProxyLens<A> = {
 };
 
 type ConnectionProxyLens<A> = BaseProxyLens<A> &
-  (A extends Connection<infer B, infer I> ? (input: I) => ProxyLens<B> : {});
+  (A extends Connection<infer B, infer I> ? { connect(input: I): ProxyLens<B> } : {});
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
 type ObjectProxyLens<A extends AnyObject> = BaseProxyLens<A> & { [K in keyof A]: ProxyLens<A[K]> };
@@ -71,17 +71,10 @@ export const proxyLens = <S, A>(
   focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
 ): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
-  type Target = Partial<BaseProxyLens<A> & { cache: KeyCache }>;
+  type ConnectionCache = { [cacheKey: string]: A extends Connection<infer B, any> ? ProxyLens<B> : never };
+  type Target = Partial<BaseProxyLens<A> & { keyCache: KeyCache; connectionCache: ConnectionCache }>;
 
   const proxy = new Proxy({} as Target, {
-    apply(_target, _thisArg, argsArray) {
-      const [input] = argsArray;
-      const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
-      const connectionFactory = createConnectionStoreFactory(storeFactory, focus as any, input);
-      const nextFocus = focusProp(focusProp(focus as any, "cache" as never), cacheKey) as any;
-      return proxyLens(connectionFactory, nextFocus);
-    },
-
     get(target, key) {
       /**
        * Block React introspection as it will otherwise produce an infinite chain of
@@ -89,6 +82,24 @@ export const proxyLens = <S, A>(
        */
       if (key === "$$typeof") {
         return undefined;
+      }
+
+      if (key === "connect") {
+        const connCache = (target.connectionCache ??= {});
+
+        return (input: any) => {
+          const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
+
+          let next = connCache[cacheKey];
+
+          if (!next) {
+            const connectionFactory = createConnectionStoreFactory(storeFactory, focus as any, input);
+            const nextFocus = focusProp(focusProp(focus as any, "cache" as never), cacheKey) as any;
+            next = connCache[cacheKey] = proxyLens(connectionFactory, nextFocus) as any;
+          }
+
+          return next;
+        };
       }
 
       if (key === "$key") {
@@ -106,15 +117,15 @@ export const proxyLens = <S, A>(
         return target.getStore;
       }
 
-      target.cache ??= {};
+      target.keyCache ??= {};
 
-      if (target.cache[key as keyof A] === undefined) {
+      if (target.keyCache[key as keyof A] === undefined) {
         const nextFocus = focusProp(focus, key as keyof A);
         const nextProxy = proxyLens(storeFactory, nextFocus);
-        target.cache[key as keyof A] = nextProxy;
+        target.keyCache[key as keyof A] = nextProxy;
       }
 
-      return target.cache[key as keyof A];
+      return target.keyCache[key as keyof A];
     },
 
     ownKeys(_target) {

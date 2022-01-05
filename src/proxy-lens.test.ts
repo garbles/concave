@@ -1,3 +1,4 @@
+import { Connection, connection } from "./connection";
 import { proxyLens, ProxyLens } from "./proxy-lens";
 import { ProxyValue, proxyValue } from "./proxy-value";
 import { ReactDevtools } from "./react-devtools";
@@ -188,4 +189,37 @@ test("making a copy, dot-navigating, and then returning to a lens works", () => 
 
   expect(b.toLens()).toBe(lens.a.b);
   expect(f0.toLens()).toBe(lens.a.f[0]);
+});
+
+describe("connections", () => {
+  type ConnectionState = {
+    b: {
+      c: number;
+    };
+  };
+
+  const factory = createStoreFactory({
+    a: connection<ConnectionState>((store) => {
+      store.update(() => ({ b: { c: 20 } }));
+    }),
+  });
+
+  const create = () => {
+    return proxyLens<{ a: Connection<ConnectionState> }, { a: Connection<ConnectionState> }>(factory);
+  };
+
+  test("throws on first sync call if data is not there", () => {
+    const lens = create();
+
+    expect(() => lens.a.getStore().getSnapshot()).not.toThrow();
+    expect(() => lens.a.connect().getStore().getSnapshot()).toThrow();
+    expect(() => lens.a.connect().b.getStore().getSnapshot()).toThrow();
+    expect(() => lens.a.connect().b.c.getStore().getSnapshot()).toThrow();
+  });
+
+  test("does not throw when calling for async data", () => {
+    const lens = create();
+
+    expect(() => lens.a.connect().b.getStore().getSnapshot({ sync: false })).not.toThrow();
+  });
 });
