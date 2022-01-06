@@ -229,11 +229,10 @@ describe("connections", () => {
     const lens = create();
     const bStore = lens.a.connect().b.getStore();
 
-    expect(() => bStore.getSnapshot({ sync: false })).not.toThrow();
-
     const unsubscribe = bStore.subscribe(() => {});
+    await new Promise((res) => setTimeout(res));
 
-    const value = await bStore.getSnapshot({ sync: false });
+    const value = bStore.getSnapshot();
 
     expect(value).toEqual({ c: 20 });
 
@@ -243,4 +242,8 @@ describe("connections", () => {
 
     expect(disconnected).toHaveBeenCalled();
   });
+
+  test.todo("if the connection changes, make sure to call disconnect on the previous and connect on the next");
+  test.todo("connection can exist inside another connection");
+  test.todo("does not connect if unsubscribed before a value can be resolved");
 });

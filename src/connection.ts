@@ -18,19 +18,18 @@ type LensFocus<S, A> = {
 type ConnectionResolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
 type ConnectionActivation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-class ConnectionCacheEntry<A> {
-  resolution: ConnectionResolution<A> = { status: "unresolved" };
-  activation: ConnectionActivation = { connected: false };
-  create: () => Unsubscribe = () => () => {};
-
+export class ConnectionCacheEntry<A> {
+  private resolution: ConnectionResolution<A> = { status: "unresolved" };
+  private activation: ConnectionActivation = { connected: false };
+  private create: () => Unsubscribe = () => () => {};
   private onReady: Promise<unknown>;
   private ready: () => void;
 
   constructor() {
     let ready = () => {};
 
-    this.onReady = new Promise<void>((res) => {
-      ready = res;
+    this.onReady = new Promise<void>((resolve) => {
+      ready = resolve;
     });
 
     this.ready = () => ready();
@@ -64,6 +63,10 @@ class ConnectionCacheEntry<A> {
     }
   }
 
+  /**
+   * Connect the entry to the store by passing a create function. Only
+   * allow this in transitioning from unresolved to resolved.
+   */
   connectToStore(create: () => Unsubscribe) {
     if (this.resolution.status !== "unresolved") {
       return;
