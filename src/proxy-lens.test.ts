@@ -3,7 +3,7 @@ import { proxyLens, ProxyLens } from "./proxy-lens";
 import { ProxyValue, proxyValue } from "./proxy-value";
 import { ReactDevtools } from "./react-devtools";
 import { createStoreFactory } from "./store";
-import { Update } from "./types";
+import { Update, Updater } from "./types";
 
 type State = {
   a: {
@@ -42,7 +42,14 @@ beforeEach(() => {
 const useLens = <A>(proxy: ProxyLens<A>): [ProxyValue<A>, Update<A>] => {
   const store = proxy.getStore();
 
-  return [proxyValue(store.getSnapshot(), proxy), store.update];
+  const update = (updater: Updater<A>) => {
+    const prev = store.getSnapshot();
+    const next = updater(prev);
+
+    return store.setSnapshot(next);
+  };
+
+  return [proxyValue(store.getSnapshot(), proxy), update];
 };
 
 describe("use", () => {
@@ -206,7 +213,7 @@ describe("connections", () => {
 
   const factory = createStoreFactory({
     a: connection<ConnectionState>((store) => {
-      store.update(() => ({ b: { c: 20 } }));
+      store.setSnapshot({ b: { c: 20 } });
 
       return disconnected;
     }),

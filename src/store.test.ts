@@ -13,24 +13,10 @@ test("triggers one call to listeners per call", () => {
 
   const unsubscribe = store.subscribe(listener);
 
-  store.update((s) => ({ ...s, a: s.a + 1 }));
-  store.update((s) => ({ ...s, b: s.b + 1 }));
+  store.setSnapshot({ ...store.getSnapshot(), a: store.getSnapshot().a + 1 });
+  store.setSnapshot({ ...store.getSnapshot(), b: store.getSnapshot().b + 1 });
 
   expect(listener).toHaveBeenCalledTimes(2);
-
-  unsubscribe();
-});
-
-test("noop when the same value is returned", () => {
-  const factory = createStoreFactory<State>({ a: 0, b: 0 });
-  const listener = jest.fn();
-  const store = factory({ keyPath: [], lens: basicLens() });
-
-  const unsubscribe = store.subscribe(listener);
-
-  store.update((s) => s);
-
-  expect(listener).toHaveBeenCalledTimes(0);
 
   unsubscribe();
 });

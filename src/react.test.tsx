@@ -27,7 +27,7 @@ const lens = createLens<State>(initialState);
 
 beforeEach(() => {
   const store = lens.getStore();
-  store.update(() => initialState);
+  store.setSnapshot(initialState);
 });
 
 const App = (props: { state: ProxyLens<State> }) => {

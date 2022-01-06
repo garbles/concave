@@ -5,7 +5,7 @@ import { createLens } from "./create-lens";
 import { ProxyLens } from "./proxy-lens";
 import { proxyValue, ProxyValue } from "./proxy-value";
 import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
-import { Update } from "./types";
+import { Update, Updater } from "./types";
 
 type Nothing = typeof NOTHING;
 
@@ -61,7 +61,23 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
     };
 
     const state = React.useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
-    const setState = store.update;
+
+    const update = React.useCallback(
+      (updater: Updater<A>) => {
+        const prev = store.getSnapshot();
+        const next = updater(prev);
+
+        /**
+         * If the next value is the previous one, then do nothing.
+         */
+        if (Object.is(prev, next)) {
+          return;
+        }
+
+        store.setSnapshot(next);
+      },
+      [store]
+    );
 
     /**
      * Assign the current state to the previous state so that when `getSnapshot`
@@ -74,7 +90,7 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
      */
     const value = React.useMemo(() => proxyValue(state, proxy), [state, proxy]);
 
-    return [value, setState];
+    return [value, update];
   };
 
 export function useCreateLens<S>(initialState: S | (() => S)) {

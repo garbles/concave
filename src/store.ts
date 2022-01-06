@@ -12,8 +12,8 @@ export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
 export type Store<A> = {
   getSnapshot(): A;
+  setSnapshot(next: A): boolean;
   subscribe(onStoreChange: Listener): Unsubscribe;
-  update(updater: Updater<A>): Promise<boolean>;
 };
 
 export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
@@ -28,30 +28,7 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
       subscribe(listener) {
         return graph.subscribe(keyPath, listener);
       },
-      async update(updater) {
-        let prev: any = undefined;
-
-        /**
-         * Try to fetch the previous value, but it may not have
-         * been set, so let prev stay undefined.
-         */
-        try {
-          prev = lens.get(snapshot);
-        } catch (err) {
-          if (!(err instanceof Promise)) {
-            throw err;
-          }
-        }
-
-        const next = updater(prev);
-
-        /**
-         * If the next value _is_ the previous snapshot then do nothing.
-         */
-        if (Object.is(next, prev)) {
-          return false;
-        }
-
+      setSnapshot(next) {
         snapshot = lens.set(snapshot, next);
         graph.notify(keyPath);
         return true;
