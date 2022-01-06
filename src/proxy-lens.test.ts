@@ -192,6 +192,12 @@ test("making a copy, dot-navigating, and then returning to a lens works", () => 
 });
 
 describe("connections", () => {
+  let disconnected = jest.fn();
+
+  beforeEach(() => {
+    disconnected = jest.fn();
+  });
+
   type ConnectionState = {
     b: {
       c: number;
@@ -201,6 +207,8 @@ describe("connections", () => {
   const factory = createStoreFactory({
     a: connection<ConnectionState>((store) => {
       store.update(() => ({ b: { c: 20 } }));
+
+      return disconnected;
     }),
   });
 
@@ -217,9 +225,22 @@ describe("connections", () => {
     expect(() => lens.a.connect().b.c.getStore().getSnapshot()).toThrow();
   });
 
-  test("does not throw when calling for async data", () => {
+  test("does not throw when calling for async data", async () => {
     const lens = create();
+    const bStore = lens.a.connect().b.getStore();
 
-    expect(() => lens.a.connect().b.getStore().getSnapshot({ sync: false })).not.toThrow();
+    expect(() => bStore.getSnapshot({ sync: false })).not.toThrow();
+
+    const unsubscribe = bStore.subscribe(() => {});
+
+    const value = await bStore.getSnapshot({ sync: false });
+
+    expect(value).toEqual({ c: 20 });
+
+    unsubscribe();
+
+    await new Promise((res) => setTimeout(res));
+
+    expect(disconnected).toHaveBeenCalled();
   });
 });

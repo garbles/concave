@@ -1,5 +1,5 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
-import { Connection } from "./connection";
+import { Connection, connectionCacheKey } from "./connection";
 import { keyPathToString } from "./key-path-to-string";
 import { ProxyValue } from "./proxy-value";
 import { createUseLens } from "./react";
@@ -88,11 +88,11 @@ export const proxyLens = <S, A>(
         const connCache = (target.connectionCache ??= {});
 
         return (input: any) => {
-          const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
-
+          const cacheKey = connectionCacheKey(input);
           let next = connCache[cacheKey];
 
           if (!next) {
+            // TODO should be able to derive these in one place
             const connectionFactory = createConnectionStoreFactory(storeFactory, focus as any, input);
             const nextFocus = focusProp(focusProp(focus as any, "cache" as never), cacheKey) as any;
             next = connCache[cacheKey] = proxyLens(connectionFactory, nextFocus) as any;

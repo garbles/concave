@@ -10,34 +10,117 @@ import { Key, Unsubscribe } from "./types";
  */
 const IS_CONNECTION = Symbol();
 
-type Clear = () => void;
-
 type LensFocus<S, A> = {
   keyPath: Key[];
   lens: BasicLens<S, A>;
 };
 
-type ConnectionState = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
+type ConnectionResolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
+type ConnectionActivation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-type ConnectionResolution<A> =
-  /**
-   * GABE: here. need to have `unresolved` type.
-   *
-   * - need to move connect/disconnect into all of them.
-   * - on unresolved, connect()/disconnect() just needs to wait until it's in a loading state and
-   *   then transition or something
-   */
+class ConnectionCacheEntry<A> {
+  resolution: ConnectionResolution<A> = { status: "unresolved" };
+  activation: ConnectionActivation = { connected: false };
+  create: () => Unsubscribe = () => () => {};
 
-  { status: "loading"; onReady: Promise<unknown>; ready(): void } | { status: "resolved"; value: A };
+  private onReady: Promise<unknown>;
+  private ready: () => void;
 
-type ConnectionEntry<A> = {
-  connect(): void;
-  disconnect(): void;
-  resolution: ConnectionResolution<A>;
-};
+  constructor() {
+    let ready = () => {};
+
+    this.onReady = new Promise<void>((res) => {
+      ready = res;
+    });
+
+    this.ready = () => ready();
+  }
+
+  get value(): A {
+    if (this.resolution.status !== "resolved") {
+      throw this.onReady;
+    }
+
+    return this.resolution.value;
+  }
+
+  set value(value: A) {
+    switch (this.resolution.status) {
+      case "unresolved": {
+        return;
+      }
+
+      case "loading": {
+        this.resolution = { status: "resolved", value };
+        this.ready();
+
+        return;
+      }
+
+      case "resolved": {
+        this.resolution.value = value;
+        return;
+      }
+    }
+  }
+
+  connectToStore(create: () => Unsubscribe) {
+    if (this.resolution.status !== "unresolved") {
+      return;
+    }
+
+    this.create = create;
+    this.resolution = { status: "loading" };
+
+    if (this.activation.connected) {
+      this.activation = { connected: true, unsubscribe: create() };
+    }
+  }
+
+  connect() {
+    switch (this.resolution.status) {
+      case "unresolved": {
+        this.activation = { connected: true, unsubscribe: () => {} };
+        break;
+      }
+      case "loading":
+      case "resolved": {
+        if (this.activation.connected) {
+          return;
+        }
+
+        this.activation = {
+          connected: true,
+          unsubscribe: this.create(),
+        };
+
+        break;
+      }
+    }
+  }
+
+  disconnect() {
+    switch (this.resolution.status) {
+      case "unresolved": {
+        this.activation = { connected: false };
+        break;
+      }
+
+      case "loading":
+      case "resolved": {
+        if (!this.activation.connected) {
+          return;
+        }
+
+        this.activation.unsubscribe();
+        this.activation = { connected: false };
+      }
+    }
+  }
+}
 
 type ConnectionCache<A> = {
-  [cacheKey: string]: ConnectionEntry<A>;
+  [cacheKey: string]: ConnectionCacheEntry<A>;
 };
 
 type ValueCache<A> = {
@@ -48,7 +131,7 @@ type InsertConnection<A, I> = (
   factory: StoreFactory<any>,
   focus: LensFocus<any, Connection<A, I>>,
   input: I
-) => ConnectionEntry<A>;
+) => ConnectionCacheEntry<A>;
 
 export type Connection<A, I = void> = {
   [IS_CONNECTION]: true;
@@ -63,76 +146,34 @@ const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): Len
   };
 };
 
+export const connectionCacheKey = <I>(input: I) => `(${JSON.stringify(input ?? "")})`;
+
 export const connection = <A, I = void>(
-  create: (store: Store<A | void>, input: I, clear: Clear) => Unsubscribe | void
+  create: (store: Store<A | void>, input: I) => Unsubscribe | void
 ): Connection<A, I> => {
   const connectionCache: ConnectionCache<A> = {};
 
   const insert: InsertConnection<A, I> = (factory, focus, input) => {
-    const cacheKey = `${keyPathToString(focus.keyPath)}(${JSON.stringify(input ?? "")})`;
+    const cacheKey = connectionCacheKey(input);
     const nextFocus = focusProp(focusProp(focus, "cache"), cacheKey);
     const store = factory(nextFocus);
 
-    // GABE: need to check whether the connection is in the store and "unresolved"
-    if (cacheKey in connectionCache) {
-      return connectionCache[cacheKey];
-    }
+    /**
+     * It can be that the cache entry was previously created by trying to
+     * access the cache because the code had been loaded.
+     */
+    let conn = (connectionCache[cacheKey] ??= new ConnectionCacheEntry<A>());
 
-    let state: ConnectionState = { connected: false };
+    conn.connectToStore(() => create(store, input) ?? (() => {}));
 
-    const connect = () => {
-      if (state.connected) {
-        return;
-      }
-
-      const unsubscribe = create(store, input, clear) ?? (() => {});
-      state = { connected: true, unsubscribe };
-    };
-
-    const disconnect = () => {
-      if (!state.connected) {
-        return;
-      }
-
-      const unsubscribe = state.unsubscribe;
-      state = { connected: false };
-      unsubscribe();
-    };
-
-    const clear = () => {
-      let ready = () => {};
-
-      let onReady = new Promise<void>((res) => {
-        ready = res;
-      });
-
-      const resolution: ConnectionResolution<A> = {
-        status: "loading",
-        get ready() {
-          return ready;
-        },
-        get onReady() {
-          return onReady;
-        },
-      };
-
-      connectionCache[cacheKey] = {
-        connect,
-        disconnect,
-        resolution,
-      };
-    };
-
-    clear();
-
-    return connectionCache[cacheKey];
+    return conn;
   };
 
   /**
    * Wrap the real cache to handle suspense.
    */
   const cache = new Proxy({} as ValueCache<A>, {
-    has(target, key) {
+    has(_target, key) {
       /**
        * Do not copy this object on update because it's a proxy facade around the real data.
        * shallowCopy checks for this key
@@ -144,76 +185,50 @@ export const connection = <A, I = void>(
       return false;
     },
 
-    ownKeys() {
-      return [doNotShallowCopy];
-    },
-
     get(_target, key): A {
-      const cached = connectionCache[key as string];
+      let cached = connectionCache[key as string];
 
       /**
-       * If the value is not cached, then throw an error.
-       * Not sure how this would happen outside of someone trying
-       * to manually inspect the cache.
+       * If the value is not in the cache then create an unresolved entry for it.
+       * This can happen if we call `getSnapshot()` before the connection has even
+       * had a chance to insert an entry for the cache yet.
        */
       if (!cached) {
-        // GABE: need to insert an unresolved value in here
-        throw new Error("Unexpected Error");
+        cached = connectionCache[key as string] = new ConnectionCacheEntry<A>();
       }
 
-      /**
-       * If the cached object is still loading then
-       * throw the `onReady` promise.
-       */
-      if (cached.resolution.status !== "resolved") {
-        // GABE: need to insert an unresolved value in here
-        throw cached.resolution.onReady;
-      }
-
-      /**
-       * Otherwise just return the value.
-       */
-      return cached.resolution.value;
+      return cached.value;
     },
 
-    set(_target, key, value) {
-      const cached = connectionCache[key as string];
+    set(_target, _key, value) {
+      let key = _key as keyof ConnectionCache<A>;
+      let conn = connectionCache[key];
 
-      /**
-       * If the value is not cached then return false.
-       */
-      if (!cached) {
+      if (conn === undefined) {
         return false;
       }
 
-      /**
-       * Prep the `ready` callback before transitioning the
-       * resolution status to resolved.
-       */
-      let ready = () => {};
-
-      if (cached.resolution.status === "loading") {
-        ready = cached.resolution.ready;
-      }
-
-      cached.resolution = { status: "resolved", value };
-
-      /**
-       * Call `ready` as suspense may be waiting for the promise to resolve.
-       */
-      ready();
-
+      conn.value = value;
       return true;
     },
   });
 
   const conn = Object.create({ insert, cache }) as Connection<A, I>;
 
-  Object.defineProperty(conn, IS_CONNECTION, {
-    configurable: true,
-    enumerable: false,
-    writable: false,
-    value: true,
+  Object.defineProperties(conn, {
+    [IS_CONNECTION]: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value: true,
+    },
+
+    [doNotShallowCopy]: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value: true,
+    },
   });
 
   return conn;
@@ -224,5 +239,5 @@ export function assertIsConnection<A, I>(obj: any): asserts obj is Connection<A,
     return;
   }
 
-  throw new Error("Unexpected Error");
+  throw new Error("Expected to resolve a Connection but didn't. This is likely a bug in Concave.");
 }

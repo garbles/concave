@@ -11,6 +11,7 @@ type LensFocus<S, A> = {
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
 interface GetSnapshot<A> {
+  // GABE: remove sync: false
   (opts?: { sync: true }): A;
   (opts: { sync: false }): Promise<A>;
 }
@@ -18,7 +19,7 @@ interface GetSnapshot<A> {
 export type Store<A> = {
   getSnapshot: GetSnapshot<A>;
   subscribe(onStoreChange: Listener): Unsubscribe;
-  update(updater: Updater<A>): boolean;
+  update(updater: Updater<A>): Promise<boolean>;
 };
 
 export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
@@ -33,10 +34,11 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
         }
 
         try {
-          return lens.get(snapshot);
+          const value = lens.get(snapshot);
+          return Promise.resolve(value);
         } catch (obj) {
           if (obj instanceof Promise) {
-            return obj as any;
+            return obj.then(async () => lens.get(snapshot)) as any;
           }
 
           throw obj;
@@ -45,20 +47,29 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
       subscribe(listener) {
         return graph.subscribe(keyPath, listener);
       },
-      update(updater) {
-        const prev = lens.get(snapshot);
-        const next = updater(prev);
+      async update(updater) {
+        try {
+          const prev = lens.get(snapshot);
+          const next = updater(prev);
 
-        /**
-         * If the next value _is_ the previous snapshot then do nothing.
-         */
-        if (Object.is(next, prev)) {
-          return false;
+          /**
+           * If the next value _is_ the previous snapshot then do nothing.
+           */
+          if (Object.is(next, prev)) {
+            return false;
+          }
+
+          snapshot = lens.set(snapshot, next);
+        } catch (obj) {
+          if (obj instanceof Promise) {
+            const next = updater(undefined as any);
+            snapshot = lens.set(snapshot, next);
+          } else {
+            throw obj;
+          }
         }
 
-        snapshot = lens.set(snapshot, next);
         graph.notify(keyPath);
-
         return true;
       },
     };
@@ -96,7 +107,6 @@ export const createConnectionStoreFactory = <S, A, I>(
 
         return async () => {
           unsubscribe();
-
           const conn = await getConnection();
 
           listeners = Math.max(listeners - 1, 0);
