@@ -1,7 +1,7 @@
-import { BasicLens } from "./basic-lens";
-import { assertIsConnection, Connection, ConnectionCacheEntry } from "./connection";
+import { basicLens, BasicLens, prop } from "./basic-lens";
+import { Connection, ConnectionCacheEntry } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
-import { Key, Listener, Unsubscribe, Updater } from "./types";
+import { Key, Listener, Unsubscribe } from "./types";
 
 type LensFocus<S, A> = {
   keyPath: Key[];
@@ -16,11 +16,16 @@ export type Store<A> = {
   subscribe(onStoreChange: Listener): Unsubscribe;
 };
 
-export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<S> => {
+export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFactory<S>, LensFocus<S, S>] => {
   const graph = new SubscriptionGraph();
   let snapshot = initialState;
 
-  return ({ keyPath, lens }) => {
+  const focus: LensFocus<S, S> = {
+    keyPath: [],
+    lens: basicLens(),
+  };
+
+  const factory: StoreFactory<S> = ({ keyPath, lens }) => {
     return {
       getSnapshot() {
         return lens.get(snapshot);
@@ -35,25 +40,29 @@ export const createStoreFactory = <S extends {}>(initialState: S): StoreFactory<
       },
     };
   };
+
+  return [factory, focus];
 };
 
 export const createConnectionStoreFactory = <S, A, I>(
-  factory: StoreFactory<S>,
+  storeFactory: StoreFactory<S>,
   connFocus: LensFocus<S, Connection<A, I>>,
   input: I
-): StoreFactory<S> => {
-  let listeners = 0;
-  const connStore = factory(connFocus);
+): [StoreFactory<S>, LensFocus<S, A>] => {
+  const root = storeFactory(connFocus);
+  const cacheKey = `(${JSON.stringify(input)})`;
 
-  /**
-   * This is lazy so that we never need to recreate the factory/lens
-   * while the underlying data may change.
-   */
+  const cacheKeyFocus: LensFocus<S, A> = {
+    keyPath: [...connFocus.keyPath, "cache", cacheKey],
+    lens: prop(prop(connFocus.lens, "cache"), cacheKey),
+  };
+
+  // GABE: need to setup a subscriber on the root store to check when the connection is swapped or removed.
+
   const getConnection = async (): Promise<ConnectionCacheEntry<A>> => {
     try {
-      const conn = connStore.getSnapshot();
-      assertIsConnection<A, I>(conn);
-      return conn.insert(factory, connFocus, input);
+      const connection = root.getSnapshot();
+      return connection.insert(storeFactory(cacheKeyFocus), input, cacheKey);
     } catch (err) {
       if (err instanceof Promise) {
         await err;
@@ -64,8 +73,9 @@ export const createConnectionStoreFactory = <S, A, I>(
     }
   };
 
-  return (focus) => {
-    const store = factory(focus);
+  const connectionStoreFactory: StoreFactory<S> = (refinedFocus) => {
+    let listeners = 0;
+    const store = storeFactory(refinedFocus);
 
     return {
       ...store,
@@ -101,4 +111,6 @@ export const createConnectionStoreFactory = <S, A, I>(
       },
     };
   };
+
+  return [connectionStoreFactory, cacheKeyFocus];
 };

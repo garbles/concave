@@ -1,5 +1,4 @@
-import { basicLens } from "./basic-lens";
-import { createStoreFactory } from "./store";
+import { createRootStoreFactory } from "./store";
 
 type State = {
   a: number;
@@ -7,9 +6,9 @@ type State = {
 };
 
 test("triggers one call to listeners per call", () => {
-  const factory = createStoreFactory<State>({ a: 0, b: 0 });
+  const [factory, focus] = createRootStoreFactory<State>({ a: 0, b: 0 });
   const listener = jest.fn();
-  const store = factory({ keyPath: [], lens: basicLens() });
+  const store = factory(focus);
 
   const unsubscribe = store.subscribe(listener);
 

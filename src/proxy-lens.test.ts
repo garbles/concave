@@ -2,7 +2,7 @@ import { Connection, connection } from "./connection";
 import { proxyLens, ProxyLens } from "./proxy-lens";
 import { ProxyValue, proxyValue } from "./proxy-value";
 import { ReactDevtools } from "./react-devtools";
-import { createStoreFactory } from "./store";
+import { createRootStoreFactory } from "./store";
 import { Update, Updater } from "./types";
 
 type State = {
@@ -34,9 +34,9 @@ const initialState = (): State => ({
 let lens: ProxyLens<State>;
 
 beforeEach(() => {
-  const factory = createStoreFactory(initialState());
+  const [factory, focus] = createRootStoreFactory(initialState());
 
-  lens = proxyLens<State, State>(factory);
+  lens = proxyLens<State, State>(factory, focus);
 });
 
 const useLens = <A>(proxy: ProxyLens<A>): [ProxyValue<A>, Update<A>] => {
@@ -211,7 +211,7 @@ describe("connections", () => {
     };
   };
 
-  const factory = createStoreFactory({
+  const [factory, focus] = createRootStoreFactory({
     a: connection<ConnectionState>((store) => {
       store.setSnapshot({ b: { c: 20 } });
 
@@ -220,7 +220,7 @@ describe("connections", () => {
   });
 
   const create = () => {
-    return proxyLens<{ a: Connection<ConnectionState> }, { a: Connection<ConnectionState> }>(factory);
+    return proxyLens<{ a: Connection<ConnectionState> }, { a: Connection<ConnectionState> }>(factory, focus);
   };
 
   test("throws on first sync call if data is not there", () => {

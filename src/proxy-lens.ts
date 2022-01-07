@@ -1,5 +1,5 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
-import { Connection, connectionCacheKey } from "./connection";
+import { Connection } from "./connection";
 import { keyPathToString } from "./key-path-to-string";
 import { ProxyValue } from "./proxy-value";
 import { createUseLens } from "./react";
@@ -57,6 +57,7 @@ export type ProxyLens<A> =
 
 const THROW_ON_COPY = Symbol();
 
+// GABE: move this to store or its own module
 const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): LensFocus<S, A[K]> => {
   return {
     keyPath: [...focus.keyPath, key],
@@ -66,10 +67,7 @@ const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): Len
 
 const specialKeys: (keyof BaseProxyLens<{}>)[] = ["use", "getStore", "$key"];
 
-export const proxyLens = <S, A>(
-  storeFactory: StoreFactory<S>,
-  focus: LensFocus<S, A> = { lens: basicLens<any>(), keyPath: [] }
-): ProxyLens<A> => {
+export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
   type ConnectionCache = { [cacheKey: string]: A extends Connection<infer B, any> ? ProxyLens<B> : never };
   type Target = Partial<BaseProxyLens<A> & { keyCache: KeyCache; connectionCache: ConnectionCache }>;
@@ -88,14 +86,12 @@ export const proxyLens = <S, A>(
         const connCache = (target.connectionCache ??= {});
 
         return (input: any) => {
-          const cacheKey = connectionCacheKey(input);
+          const cacheKey = JSON.stringify(input);
           let next = connCache[cacheKey];
 
           if (!next) {
-            // TODO should be able to derive these in one place
-            const connectionFactory = createConnectionStoreFactory(storeFactory, focus as any, input);
-            const nextFocus = focusProp(focusProp(focus as any, "cache" as never), cacheKey) as any;
-            next = connCache[cacheKey] = proxyLens(connectionFactory, nextFocus) as any;
+            const [nextFactory, nextFocus] = createConnectionStoreFactory(storeFactory, focus as any, input);
+            next = connCache[cacheKey] = proxyLens(nextFactory, nextFocus) as any;
           }
 
           return next;
