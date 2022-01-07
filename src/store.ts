@@ -13,8 +13,6 @@ export type Store<A> = {
   subscribe(onStoreChange: Listener): Unsubscribe;
 };
 
-let storeIdCounter = 1;
-
 export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFactory<S>, LensFocus<S, S>] => {
   const graph = new SubscriptionGraph();
   const focus = rootLensFocus<S>();
@@ -40,6 +38,7 @@ export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFac
 };
 
 let noopBreakable: Breakable = { connect() {}, disconnect() {} };
+let storeIdCounter = 1;
 
 export const createConnectionStoreFactory = <S, A, I>(
   storeFactory: StoreFactory<S>,
@@ -47,9 +46,9 @@ export const createConnectionStoreFactory = <S, A, I>(
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
   let id = storeIdCounter++;
-  const root = storeFactory(connFocus);
   const cacheKey = `connection(${id}, ${JSON.stringify(input)})`;
 
+  const root = storeFactory(connFocus);
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
 
   const getBreakable = awaitable<Breakable>((): Awaitable<Breakable> => {
