@@ -1,16 +1,14 @@
-import { Activation } from "./activation";
+import { awaitable } from "./awaitable";
 import { basicLens, BasicLens } from "./basic-lens";
-import { Connection, focusToCache, insert } from "./connection";
+import { Breakable, Breaker } from "./breaker";
+import { Connection, focusToCache, insert, isConnection } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
-import { SuspendedClosure } from "./suspended-closure";
 import { Key, Listener, Unsubscribe } from "./types";
 
 type LensFocus<S, A> = {
   keyPath: Key[];
   lens: BasicLens<S, A>;
 };
-
-type RootActivation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -57,79 +55,100 @@ export const createConnectionStoreFactory = <S, A, I>(
   const cacheKey = `(${JSON.stringify(input)})`;
 
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
+  let noopBreakable: Breakable = { connect() {}, disconnect() {} };
 
-  const getConnection = async (): Promise<SuspendedClosure<A>> => {
+  const getBreakable = (): PromiseLike<Breakable> => {
     try {
       const conn = root.getSnapshot();
-      return insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
+      let breakable = noopBreakable;
+
+      if (isConnection<A, I>(conn)) {
+        breakable = insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
+      }
+
+      return awaitable(breakable);
     } catch (err) {
       if (err instanceof Promise) {
-        await err;
-        return getConnection();
+        return err.then(getBreakable);
       }
 
       throw err;
     }
   };
 
-  const rootActivation = new Activation(() => {
-    let nullConn = { connect() {}, disconnect() {} };
-    let prevConn = nullConn;
+  const breaker = new Breaker(() => {
+    let connected = true;
+    let prevConn = noopBreakable;
 
-    return root.subscribe(async () => {
-      const nextConn = await getConnection();
-
-      if (nextConn !== prevConn) {
-        prevConn.disconnect();
+    getBreakable().then((conn) => {
+      /**
+       * In the case that the breaker
+       * is disconnected before `getBreakable`
+       * is resolved.
+       */
+      if (connected) {
+        conn.connect();
       }
 
-      if (nextConn instanceof SuspendedClosure) {
-        nextConn.connect();
-        prevConn = nextConn;
-      } else {
-        prevConn = nullConn;
-      }
+      prevConn = conn;
     });
+
+    const unsubscribe = root.subscribe(() => {
+      getBreakable().then((nextConn) => {
+        /**
+         * If the root state is updated and the connection
+         * changes, then disconnect the old previous and
+         * connect the next.
+         */
+        if (nextConn !== prevConn) {
+          prevConn.disconnect();
+
+          /**
+           * In the case that the breaker
+           * is disconnected before `getBreakable`
+           * is resolved.
+           */
+          if (connected) {
+            nextConn.connect();
+          }
+
+          prevConn = nextConn;
+        }
+      });
+    });
+
+    return () => {
+      connected = false;
+
+      prevConn.disconnect();
+      unsubscribe();
+    };
   });
 
-  // GABE in subscribe below we need subscribeToRoot and unsubscribeFromRoot
+  /**
+   * Keep track of the number of subscribers in order to enable/disable
+   * the above breaker.
+   */
+  let currentSubscribers = 0;
 
   const connectionStoreFactory: StoreFactory<S> = (refinedFocus) => {
-    let listeners = 0;
     const store = storeFactory(refinedFocus);
 
     return {
       ...store,
       subscribe(listener) {
         const unsubscribe = store.subscribe(listener);
-        let subscribed = true;
-        listeners += 1;
 
-        rootActivation.connect();
+        currentSubscribers += 1;
+        breaker.connect();
 
-        getConnection().then((conn) => {
-          /**
-           * Do this in case unsubscription happens before
-           * the connection was resolved.
-           */
-          if (subscribed) {
-            conn.connect();
-          }
-
-          return conn;
-        });
-
-        return async () => {
+        return () => {
           unsubscribe();
-          subscribed = false;
 
-          const conn = await getConnection();
+          currentSubscribers = Math.max(currentSubscribers - 1, 0);
 
-          listeners = Math.max(listeners - 1, 0);
-
-          if (listeners <= 0) {
-            conn.disconnect();
-            rootActivation.disconnect();
+          if (currentSubscribers <= 0) {
+            breaker.disconnect();
           }
         };
       },

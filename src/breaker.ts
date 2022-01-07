@@ -2,9 +2,14 @@ import { Unsubscribe } from "./types";
 
 type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-export class Activation {
-  static null() {
-    return new Activation(() => () => {});
+export interface Breakable {
+  connect(): void;
+  disconnect(): void;
+}
+
+export class Breaker implements Breakable {
+  static noop() {
+    return new Breaker(() => () => {});
   }
 
   private state: State = { connected: false };

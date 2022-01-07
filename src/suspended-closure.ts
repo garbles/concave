@@ -1,11 +1,11 @@
-import { Activation } from "./activation";
+import { Breakable, Breaker } from "./breaker";
 import { Unsubscribe } from "./types";
 
 type Resolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
 
-export class SuspendedClosure<A> {
+export class SuspendedClosure<A> implements Breakable {
   private resolution: Resolution<A> = { status: "unresolved" };
-  private activation = Activation.null();
+  private breaker = Breaker.noop();
   private onReady: Promise<unknown>;
   private ready: () => void;
 
@@ -19,7 +19,7 @@ export class SuspendedClosure<A> {
     this.ready = () => ready();
   }
 
-  get value(): A {
+  getSnapshot(): A {
     if (this.resolution.status !== "resolved") {
       throw this.onReady;
     }
@@ -27,7 +27,7 @@ export class SuspendedClosure<A> {
     return this.resolution.value;
   }
 
-  set value(value: A) {
+  setSnapshot(value: A) {
     switch (this.resolution.status) {
       case "unresolved": {
         return;
@@ -60,21 +60,22 @@ export class SuspendedClosure<A> {
 
     /**
      * If the entry was previously unresolved, but connected - via subscribe - then
-     * we need to actually call the `create` function
+     * we need to actually call the `connect()` function
      */
-    const connected = this.activation.connected;
-    this.activation = new Activation(subscribe);
+    const isAlreadyConnected = this.breaker.connected;
 
-    if (connected) {
-      this.activation.connect();
+    this.breaker = new Breaker(subscribe);
+
+    if (isAlreadyConnected) {
+      this.breaker.connect();
     }
   }
 
   connect() {
-    this.activation.connect();
+    this.breaker.connect();
   }
 
   disconnect() {
-    this.activation.disconnect();
+    this.breaker.disconnect();
   }
 }

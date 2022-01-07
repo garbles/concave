@@ -56,7 +56,7 @@ export const connection = <A, I = void>(
        */
       let cached = (connectionCache[key] ??= new SuspendedClosure<A>());
 
-      return cached.value;
+      return cached.getSnapshot();
     },
 
     set(_target, _key, value) {
@@ -67,7 +67,7 @@ export const connection = <A, I = void>(
         return false;
       }
 
-      conn.value = value;
+      conn.setSnapshot(value);
       return true;
     },
   });
@@ -119,4 +119,8 @@ export const focusToCache = <S, A, I>(focus: LensFocus<S, Connection<A, I>>, cac
 
 export const insert = <A, I>(conn: Connection<A, I>, store: Store<A>, input: I, cacheKey: string) => {
   return conn[INSERT](store, input, cacheKey);
+};
+
+export const isConnection = <A, I>(conn: any): conn is Connection<A, I> => {
+  return Reflect.has(conn, INSERT) && Reflect.has(conn, CACHE);
 };
