@@ -1,6 +1,7 @@
 import { BasicLens, prop } from "./basic-lens";
 import { doNotShallowCopy } from "./shallow-copy";
 import { Store } from "./store";
+import { SuspendedClosure } from "./suspended-closure";
 import { Key, Unsubscribe } from "./types";
 
 type LensFocus<S, A> = {
@@ -8,126 +9,15 @@ type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
 };
 
-type ConnectionResolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
-type ConnectionActivation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
-
-// GABE rename to SuspendedClosure<A> and move to own module for testing
-export class ConnectionCacheEntry<A> {
-  private resolution: ConnectionResolution<A> = { status: "unresolved" };
-  private activation: ConnectionActivation = { connected: false };
-  private create: () => Unsubscribe = () => () => {};
-  private onReady: Promise<unknown>;
-  private ready: () => void;
-
-  constructor() {
-    let ready = () => {};
-
-    this.onReady = new Promise<void>((resolve) => {
-      ready = resolve;
-    });
-
-    this.ready = () => ready();
-  }
-
-  get value(): A {
-    if (this.resolution.status !== "resolved") {
-      throw this.onReady;
-    }
-
-    return this.resolution.value;
-  }
-
-  set value(value: A) {
-    switch (this.resolution.status) {
-      case "unresolved": {
-        return;
-      }
-
-      case "loading": {
-        this.resolution = { status: "resolved", value };
-        this.ready();
-
-        return;
-      }
-
-      case "resolved": {
-        this.resolution.value = value;
-        return;
-      }
-    }
-  }
-
-  /**
-   * Connect the entry to the store by passing a create function. Only
-   * allow this in transitioning from unresolved to resolved.
-   */
-  load(create: () => Unsubscribe) {
-    if (this.resolution.status !== "unresolved") {
-      return;
-    }
-
-    this.create = create;
-    this.resolution = { status: "loading" };
-
-    /**
-     * If the entry was previously unresolved, but connected - via subscribe - then
-     * we need to actually call the `create` function
-     */
-    if (this.activation.connected) {
-      this.activation = { connected: true, unsubscribe: create() };
-    }
-  }
-
-  connect() {
-    if (this.activation.connected) {
-      return;
-    }
-
-    switch (this.resolution.status) {
-      case "unresolved": {
-        this.activation = {
-          connected: true,
-          unsubscribe: () => {},
-        };
-
-        break;
-      }
-      case "loading":
-      case "resolved": {
-        const unsubscribe = this.create();
-
-        this.activation = {
-          connected: true,
-          unsubscribe,
-        };
-
-        break;
-      }
-    }
-  }
-
-  disconnect() {
-    if (!this.activation.connected) {
-      return;
-    }
-
-    this.activation.unsubscribe();
-
-    this.activation = {
-      connected: false,
-    };
-  }
-}
-
 type ConnectionCache<A> = {
-  [cacheKey: string]: ConnectionCacheEntry<A>;
+  [cacheKey: string]: SuspendedClosure<A>;
 };
 
 type ValueCache<A> = {
   [cacheKey: string]: A;
 };
 
-type InsertConnection<A, I> = (store: Store<A>, input: I, cacheKey: string) => ConnectionCacheEntry<A>;
+type InsertConnection<A, I> = (store: Store<A>, input: I, cacheKey: string) => SuspendedClosure<A>;
 
 const INSERT = Symbol();
 const CACHE = Symbol();
@@ -164,7 +54,7 @@ export const connection = <A, I = void>(
        * This can happen if we call `getSnapshot()` before the connection has even
        * had a chance to insert an entry for the cache yet.
        */
-      let cached = (connectionCache[key] ??= new ConnectionCacheEntry<A>());
+      let cached = (connectionCache[key] ??= new SuspendedClosure<A>());
 
       return cached.value;
     },
@@ -187,7 +77,7 @@ export const connection = <A, I = void>(
      * It can be that the cache entry was previously created by trying to
      * access the cache because the code had been loaded.
      */
-    let conn = (connectionCache[cacheKey] ??= new ConnectionCacheEntry<A>());
+    let conn = (connectionCache[cacheKey] ??= new SuspendedClosure<A>());
 
     conn.load(() => create(store, input) ?? (() => {}));
 

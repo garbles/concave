@@ -1,6 +1,7 @@
-import { basicLens, BasicLens, prop } from "./basic-lens";
-import { Connection, ConnectionCacheEntry, focusToCache, insert } from "./connection";
+import { basicLens, BasicLens } from "./basic-lens";
+import { Connection, focusToCache, insert } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
+import { SuspendedClosure } from "./suspended-closure";
 import { Key, Listener, Unsubscribe } from "./types";
 
 type LensFocus<S, A> = {
@@ -8,7 +9,7 @@ type LensFocus<S, A> = {
   lens: BasicLens<S, A>;
 };
 
-type RootSubscription = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
+type RootActivation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -56,9 +57,7 @@ export const createConnectionStoreFactory = <S, A, I>(
 
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
 
-  // GABE: need to setup a subscriber on the root store to check when the connection is swapped or removed.
-
-  const getConnection = async (): Promise<ConnectionCacheEntry<A>> => {
+  const getConnection = async (): Promise<SuspendedClosure<A>> => {
     try {
       const conn = root.getSnapshot();
       return insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
@@ -72,7 +71,7 @@ export const createConnectionStoreFactory = <S, A, I>(
     }
   };
 
-  let rootSubscription: RootSubscription = { connected: false };
+  let rootSubscription: RootActivation = { connected: false };
 
   const connectToRoot = () => {
     if (rootSubscription.connected) {
@@ -89,7 +88,7 @@ export const createConnectionStoreFactory = <S, A, I>(
         prevConn.disconnect();
       }
 
-      if (nextConn instanceof ConnectionCacheEntry) {
+      if (nextConn instanceof SuspendedClosure) {
         nextConn.connect();
         prevConn = nextConn;
       } else {
