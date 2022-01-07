@@ -1,17 +1,12 @@
-import { basicLens, BasicLens, prop } from "./basic-lens";
 import { Connection } from "./connection";
 import { keyPathToString } from "./key-path-to-string";
+import { LensFocus, refineLensFocus } from "./lens-focus";
 import { ProxyValue } from "./proxy-value";
 import { createUseLens } from "./react";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 import { createConnectionStoreFactory, Store } from "./store";
-import { AnyArray, AnyConnection, AnyObject, AnyPrimitive, Key, Update } from "./types";
-
-type LensFocus<S, A> = {
-  lens: BasicLens<S, A>;
-  keyPath: Key[];
-};
+import { AnyArray, AnyConnection, AnyObject, AnyPrimitive, Update } from "./types";
 
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -56,15 +51,6 @@ export type ProxyLens<A> =
   never;
 
 const THROW_ON_COPY = Symbol();
-
-// GABE: move this to store or its own module
-const focusProp = <S, A, K extends keyof A>(focus: LensFocus<S, A>, key: K): LensFocus<S, A[K]> => {
-  return {
-    keyPath: [...focus.keyPath, key],
-    lens: prop(focus.lens, key as K),
-  };
-};
-
 const specialKeys: (keyof BaseProxyLens<{}>)[] = ["use", "getStore", "$key"];
 
 export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
@@ -116,7 +102,7 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
       target.keyCache ??= {};
 
       if (target.keyCache[key as keyof A] === undefined) {
-        const nextFocus = focusProp(focus, key as keyof A);
+        const nextFocus = refineLensFocus(focus, [key as keyof A]);
         const nextProxy = proxyLens(storeFactory, nextFocus);
         target.keyCache[key as keyof A] = nextProxy;
       }

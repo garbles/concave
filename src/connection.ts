@@ -1,13 +1,8 @@
-import { BasicLens, prop } from "./basic-lens";
+import { LensFocus, refineLensFocus } from "./lens-focus";
 import { doNotShallowCopy } from "./shallow-copy";
 import { Store } from "./store";
 import { SuspendedClosure } from "./suspended-closure";
-import { Key, Unsubscribe } from "./types";
-
-type LensFocus<S, A> = {
-  keyPath: Key[];
-  lens: BasicLens<S, A>;
-};
+import { Unsubscribe } from "./types";
 
 type ConnectionCache<A> = {
   [cacheKey: string]: SuspendedClosure<A>;
@@ -110,12 +105,8 @@ export const connection = <A, I = void>(
   return conn;
 };
 
-export const focusToCache = <S, A, I>(focus: LensFocus<S, Connection<A, I>>, cacheKey: string): LensFocus<S, A> => {
-  return {
-    keyPath: [...focus.keyPath, CACHE, cacheKey],
-    lens: prop(prop(focus.lens, CACHE), cacheKey),
-  };
-};
+export const focusToCache = <S, A, I>(focus: LensFocus<S, Connection<A, I>>, cacheKey: string): LensFocus<S, A> =>
+  refineLensFocus(focus, [CACHE, cacheKey]);
 
 export const insert = <A, I>(conn: Connection<A, I>, store: Store<A>, input: I, cacheKey: string) => {
   return conn[INSERT](store, input, cacheKey);

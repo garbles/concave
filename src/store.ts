@@ -1,14 +1,9 @@
-import { awaitable } from "./awaitable";
-import { basicLens, BasicLens } from "./basic-lens";
+import { Awaitable, awaitable } from "./awaitable";
 import { Breakable, Breaker } from "./breaker";
 import { Connection, focusToCache, insert, isConnection } from "./connection";
+import { LensFocus, rootLensFocus } from "./lens-focus";
 import { SubscriptionGraph } from "./subscription-graph";
-import { Key, Listener, Unsubscribe } from "./types";
-
-type LensFocus<S, A> = {
-  keyPath: Key[];
-  lens: BasicLens<S, A>;
-};
+import { Listener, Unsubscribe } from "./types";
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -18,14 +13,12 @@ export type Store<A> = {
   subscribe(onStoreChange: Listener): Unsubscribe;
 };
 
+let storeIdCounter = 1;
+
 export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFactory<S>, LensFocus<S, S>] => {
   const graph = new SubscriptionGraph();
+  const focus = rootLensFocus<S>();
   let snapshot = initialState;
-
-  const focus: LensFocus<S, S> = {
-    keyPath: [],
-    lens: basicLens(),
-  };
 
   const factory: StoreFactory<S> = ({ keyPath, lens }) => {
     return {
@@ -46,27 +39,28 @@ export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFac
   return [factory, focus];
 };
 
+let noopBreakable: Breakable = { connect() {}, disconnect() {} };
+
 export const createConnectionStoreFactory = <S, A, I>(
   storeFactory: StoreFactory<S>,
   connFocus: LensFocus<S, Connection<A, I>>,
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
+  let id = storeIdCounter++;
   const root = storeFactory(connFocus);
-  const cacheKey = `(${JSON.stringify(input)})`;
+  const cacheKey = `connection(${id}, ${JSON.stringify(input)})`;
 
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
-  let noopBreakable: Breakable = { connect() {}, disconnect() {} };
 
-  const getBreakable = (): PromiseLike<Breakable> => {
+  const getBreakable = awaitable<Breakable>((): Awaitable<Breakable> => {
     try {
       const conn = root.getSnapshot();
-      let breakable = noopBreakable;
 
       if (isConnection<A, I>(conn)) {
-        breakable = insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
+        return insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
+      } else {
+        return noopBreakable;
       }
-
-      return awaitable(breakable);
     } catch (err) {
       if (err instanceof Promise) {
         return err.then(getBreakable);
@@ -74,7 +68,7 @@ export const createConnectionStoreFactory = <S, A, I>(
 
       throw err;
     }
-  };
+  });
 
   const breaker = new Breaker(() => {
     let connected = true;
@@ -126,8 +120,10 @@ export const createConnectionStoreFactory = <S, A, I>(
   });
 
   /**
-   * Keep track of the number of subscribers in order to enable/disable
-   * the above breaker.
+   * Here we wrap the parent store factory in order to keep track of
+   * the number of subscribers in order to enable/disable the above breaker.
+   * This will be done at every "level" that a connection exists in the state
+   * hierarchy.
    */
   let currentSubscribers = 0;
 

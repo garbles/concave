@@ -5,7 +5,7 @@ export type AnyObject = { [key: string | number | symbol]: Value };
 export type AnyArray = Value[];
 export type AnyPrimitive = number | bigint | string | boolean | null | void | symbol;
 export type AnyConnection = Connection<any, any>;
-export type Value = AnyArray | AnyObject | AnyPrimitive | AnyConnection;
+export type Value = any;
 export type Listener = () => void;
 export type Unsubscribe = () => void;
 export type Updater<A> = (a: A) => A;

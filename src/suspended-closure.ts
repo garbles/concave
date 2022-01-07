@@ -59,8 +59,9 @@ export class SuspendedClosure<A> implements Breakable {
     this.resolution = { status: "loading" };
 
     /**
-     * If the entry was previously unresolved, but connected - via subscribe - then
-     * we need to actually call the `connect()` function
+     * If the entry was previously unresolved, but connected—via subscribe—then
+     * we need to actually call the `connect()` function because we've now been given the
+     * real subscribe function.
      */
     const isAlreadyConnected = this.breaker.connected;
 
