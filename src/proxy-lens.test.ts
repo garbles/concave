@@ -211,13 +211,13 @@ describe("connections", () => {
     };
   };
 
-  const [factory, focus] = createRootStoreFactory({
-    a: connection<ConnectionState>((store) => {
-      store.setSnapshot({ b: { c: 20 } });
+  const conn = connection<ConnectionState>((store) => {
+    store.setSnapshot({ b: { c: 20 } });
 
-      return disconnected;
-    }),
+    return disconnected;
   });
+
+  const [factory, focus] = createRootStoreFactory({ a: conn });
 
   const create = () => {
     return proxyLens<{ a: Connection<ConnectionState> }, { a: Connection<ConnectionState> }>(factory, focus);

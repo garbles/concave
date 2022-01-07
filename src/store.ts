@@ -1,5 +1,5 @@
 import { basicLens, BasicLens, prop } from "./basic-lens";
-import { Connection, ConnectionCacheEntry } from "./connection";
+import { Connection, ConnectionCacheEntry, focusToCache, insert } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
 import { Key, Listener, Unsubscribe } from "./types";
 
@@ -7,6 +7,8 @@ type LensFocus<S, A> = {
   keyPath: Key[];
   lens: BasicLens<S, A>;
 };
+
+type RootSubscription = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -52,17 +54,14 @@ export const createConnectionStoreFactory = <S, A, I>(
   const root = storeFactory(connFocus);
   const cacheKey = `(${JSON.stringify(input)})`;
 
-  const cacheKeyFocus: LensFocus<S, A> = {
-    keyPath: [...connFocus.keyPath, "cache", cacheKey],
-    lens: prop(prop(connFocus.lens, "cache"), cacheKey),
-  };
+  const cacheKeyFocus = focusToCache(connFocus, cacheKey);
 
   // GABE: need to setup a subscriber on the root store to check when the connection is swapped or removed.
 
   const getConnection = async (): Promise<ConnectionCacheEntry<A>> => {
     try {
-      const connection = root.getSnapshot();
-      return connection.insert(storeFactory(cacheKeyFocus), input, cacheKey);
+      const conn = root.getSnapshot();
+      return insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
     } catch (err) {
       if (err instanceof Promise) {
         await err;
@@ -72,6 +71,45 @@ export const createConnectionStoreFactory = <S, A, I>(
       throw err;
     }
   };
+
+  let rootSubscription: RootSubscription = { connected: false };
+
+  const connectToRoot = () => {
+    if (rootSubscription.connected) {
+      return;
+    }
+
+    let nullConn = { connect() {}, disconnect() {} };
+    let prevConn = nullConn;
+
+    const unsubscribe = root.subscribe(async () => {
+      const nextConn = await getConnection();
+
+      if (nextConn !== prevConn) {
+        prevConn.disconnect();
+      }
+
+      if (nextConn instanceof ConnectionCacheEntry) {
+        nextConn.connect();
+        prevConn = nextConn;
+      } else {
+        prevConn = nullConn;
+      }
+    });
+
+    rootSubscription = { connected: true, unsubscribe };
+  };
+
+  const disconnectFromRoot = () => {
+    if (!rootSubscription.connected) {
+      return;
+    }
+
+    rootSubscription.unsubscribe();
+    rootSubscription = { connected: false };
+  };
+
+  // GABE in subscribe below we need subscribeToRoot and unsubscribeFromRoot
 
   const connectionStoreFactory: StoreFactory<S> = (refinedFocus) => {
     let listeners = 0;
@@ -83,6 +121,8 @@ export const createConnectionStoreFactory = <S, A, I>(
         const unsubscribe = store.subscribe(listener);
         let subscribed = true;
         listeners += 1;
+
+        connectToRoot();
 
         getConnection().then((conn) => {
           /**
@@ -106,6 +146,7 @@ export const createConnectionStoreFactory = <S, A, I>(
 
           if (listeners <= 0) {
             conn.disconnect();
+            disconnectFromRoot();
           }
         };
       },
