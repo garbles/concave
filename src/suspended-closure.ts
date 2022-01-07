@@ -1,12 +1,11 @@
+import { Activation } from "./activation";
 import { Unsubscribe } from "./types";
 
 type Resolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
-type Activation = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
 export class SuspendedClosure<A> {
   private resolution: Resolution<A> = { status: "unresolved" };
-  private activation: Activation = { connected: false };
-  private subscribe: () => Unsubscribe = () => () => {};
+  private activation = Activation.null();
   private onReady: Promise<unknown>;
   private ready: () => void;
 
@@ -57,40 +56,25 @@ export class SuspendedClosure<A> {
       return;
     }
 
-    this.subscribe = subscribe;
     this.resolution = { status: "loading" };
 
     /**
      * If the entry was previously unresolved, but connected - via subscribe - then
      * we need to actually call the `create` function
      */
-    if (this.activation.connected) {
-      this.activation = { connected: true, unsubscribe: subscribe() };
+    const connected = this.activation.connected;
+    this.activation = new Activation(subscribe);
+
+    if (connected) {
+      this.activation.connect();
     }
   }
 
   connect() {
-    if (this.activation.connected) {
-      return;
-    }
-
-    const unsubscribe = this.subscribe();
-
-    this.activation = {
-      connected: true,
-      unsubscribe,
-    };
+    this.activation.connect();
   }
 
   disconnect() {
-    if (!this.activation.connected) {
-      return;
-    }
-
-    this.activation.unsubscribe();
-
-    this.activation = {
-      connected: false,
-    };
+    this.activation.disconnect();
   }
 }

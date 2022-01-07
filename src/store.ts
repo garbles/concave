@@ -1,3 +1,4 @@
+import { Activation } from "./activation";
 import { basicLens, BasicLens } from "./basic-lens";
 import { Connection, focusToCache, insert } from "./connection";
 import { SubscriptionGraph } from "./subscription-graph";
@@ -71,17 +72,11 @@ export const createConnectionStoreFactory = <S, A, I>(
     }
   };
 
-  let rootSubscription: RootActivation = { connected: false };
-
-  const connectToRoot = () => {
-    if (rootSubscription.connected) {
-      return;
-    }
-
+  const rootActivation = new Activation(() => {
     let nullConn = { connect() {}, disconnect() {} };
     let prevConn = nullConn;
 
-    const unsubscribe = root.subscribe(async () => {
+    return root.subscribe(async () => {
       const nextConn = await getConnection();
 
       if (nextConn !== prevConn) {
@@ -95,18 +90,7 @@ export const createConnectionStoreFactory = <S, A, I>(
         prevConn = nullConn;
       }
     });
-
-    rootSubscription = { connected: true, unsubscribe };
-  };
-
-  const disconnectFromRoot = () => {
-    if (!rootSubscription.connected) {
-      return;
-    }
-
-    rootSubscription.unsubscribe();
-    rootSubscription = { connected: false };
-  };
+  });
 
   // GABE in subscribe below we need subscribeToRoot and unsubscribeFromRoot
 
@@ -121,7 +105,7 @@ export const createConnectionStoreFactory = <S, A, I>(
         let subscribed = true;
         listeners += 1;
 
-        connectToRoot();
+        rootActivation.connect();
 
         getConnection().then((conn) => {
           /**
@@ -145,7 +129,7 @@ export const createConnectionStoreFactory = <S, A, I>(
 
           if (listeners <= 0) {
             conn.disconnect();
-            disconnectFromRoot();
+            rootActivation.disconnect();
           }
         };
       },
