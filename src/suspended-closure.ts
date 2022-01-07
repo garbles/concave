@@ -36,7 +36,6 @@ export class SuspendedClosure<A> implements Breakable {
       case "loading": {
         this.resolution = { status: "resolved", value };
         this.ready();
-
         return;
       }
 
