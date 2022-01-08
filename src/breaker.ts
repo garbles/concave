@@ -25,7 +25,7 @@ export class Breaker implements Breakable {
       return;
     }
 
-    const unsubscribe = this.subscribe();
+    const unsubscribe = this.subscribe.call(null);
 
     this.state = {
       connected: true,

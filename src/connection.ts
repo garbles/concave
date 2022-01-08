@@ -1,3 +1,4 @@
+import { isObject } from "./is-object";
 import { LensFocus, refineLensFocus } from "./lens-focus";
 import { doNotShallowCopy } from "./shallow-copy";
 import { Store } from "./store";
@@ -113,5 +114,5 @@ export const insert = <A, I>(conn: Connection<A, I>, store: Store<A>, input: I, 
 };
 
 export const isConnection = <A, I>(conn: any): conn is Connection<A, I> => {
-  return Reflect.has(conn, INSERT) && Reflect.has(conn, CACHE);
+  return isObject(conn) && Reflect.has(conn, INSERT) && Reflect.has(conn, CACHE);
 };

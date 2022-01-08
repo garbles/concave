@@ -236,7 +236,7 @@ describe("connections", () => {
     const lens = create();
     const bStore = lens.a.connect().b.getStore();
 
-    const unsubscribe = bStore.subscribe(() => {});
+    const unsubscribe = bStore.subscribe();
     await new Promise((res) => setTimeout(res));
 
     const value = bStore.getSnapshot();
@@ -250,7 +250,126 @@ describe("connections", () => {
     expect(disconnected).toHaveBeenCalled();
   });
 
-  test.todo("if the connection changes, make sure to call disconnect on the previous and connect on the next");
-  test.todo("connection can exist inside another connection");
-  test.todo("does not connect if unsubscribed before a value can be resolved");
+  test("allows nested connections", () => {
+    const state = {
+      b: connection<{ a: Connection<number> }, number>((store, input) => {
+        const a = connection<number>((s) => {
+          s.setSnapshot(input + 20);
+        });
+
+        store.setSnapshot({ a });
+      }),
+    };
+
+    const [factory, focus] = createRootStoreFactory(state);
+    const lens = proxyLens(factory, focus);
+
+    const aStore = lens.b.connect(5).a.connect().getStore();
+
+    const unsubscribe = aStore.subscribe();
+
+    expect(aStore.getSnapshot()).toEqual(25);
+
+    unsubscribe();
+  });
+
+  test("allows connectiions to be swapped for other values", () => {
+    const setup = jest.fn();
+    const cleanup = jest.fn();
+
+    const conn = connection<number, number>((store, input) => {
+      setup();
+
+      store.setSnapshot(50 + input);
+
+      return cleanup;
+    });
+
+    const state: { b: Connection<number, number> | string } = {
+      b: conn,
+    };
+
+    const [factory, focus] = createRootStoreFactory(state);
+    const lens = proxyLens(factory, focus);
+
+    const bStore = lens.b.getStore();
+    const bConnStore = (lens.b as any).connect(20).getStore();
+
+    const unsubscribe = bConnStore.subscribe();
+
+    /**
+     * Connection works as expected
+     */
+    expect(bConnStore.getSnapshot()).toEqual(70);
+
+    expect(cleanup).not.toHaveBeenCalled();
+
+    (bStore as any).setSnapshot("gabe");
+
+    /**
+     * Cleanup is called when the connection is removed.
+     */
+    expect(cleanup).toHaveBeenCalledTimes(1);
+
+    /**
+     * Using the connection store will throw an error now because
+     * the cache is not inserted into the store.
+     */
+    expect(() => bConnStore.getSnapshot()).toThrow();
+
+    /**
+     * Immediately connects when connection is re-established.
+     */
+    expect(setup).toHaveBeenCalledTimes(1);
+    (bStore as any).setSnapshot(conn);
+    expect(setup).toHaveBeenCalledTimes(2);
+
+    /**
+     * Value can be accessed again.
+     */
+    expect(bConnStore.getSnapshot()).toEqual(70);
+
+    unsubscribe();
+
+    /**
+     * Cleanup function is called again.
+     */
+    expect(cleanup).toHaveBeenCalledTimes(2);
+  });
+
+  test("adjacent connections with the same input do not share the same data", () => {
+    const conn = connection<number, number>((store, input) => {
+      store.setSnapshot(input + 100);
+    });
+
+    const state = {
+      a: conn,
+      b: conn,
+    };
+
+    const [factory, focus] = createRootStoreFactory(state);
+    const lens = proxyLens(factory, focus);
+
+    const aStore = lens.a.connect(20).getStore();
+    const bStore = lens.b.connect(20).getStore();
+
+    const aUnsubscribe = aStore.subscribe();
+    const bUnsubscribe = bStore.subscribe();
+
+    expect(aStore.getSnapshot()).toEqual(120);
+    expect(bStore.getSnapshot()).toEqual(120);
+
+    aStore.setSnapshot(0);
+
+    expect(aStore.getSnapshot()).toEqual(0);
+    expect(bStore.getSnapshot()).toEqual(120);
+
+    bStore.setSnapshot(-100);
+
+    expect(aStore.getSnapshot()).toEqual(0);
+    expect(bStore.getSnapshot()).toEqual(-100);
+
+    aUnsubscribe();
+    bUnsubscribe();
+  });
 });

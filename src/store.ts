@@ -10,8 +10,10 @@ export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 export type Store<A> = {
   getSnapshot(): A;
   setSnapshot(next: A): boolean;
-  subscribe(onStoreChange: Listener): Unsubscribe;
+  subscribe(onStoreChange?: Listener): Unsubscribe;
 };
+
+const noop: Listener = () => {};
 
 export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFactory<S>, LensFocus<S, S>] => {
   const graph = new SubscriptionGraph();
@@ -23,7 +25,7 @@ export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFac
       getSnapshot() {
         return lens.get(snapshot);
       },
-      subscribe(listener) {
+      subscribe(listener = noop) {
         return graph.subscribe(keyPath, listener);
       },
       setSnapshot(next) {
@@ -46,17 +48,18 @@ export const createConnectionStoreFactory = <S, A, I>(
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
   let id = storeIdCounter++;
-  const cacheKey = `connection(${id}, ${JSON.stringify(input)})`;
-
-  const root = storeFactory(connFocus);
+  const cacheKey = `connection(${id}, ${JSON.stringify(input ?? {})})`;
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
+
+  const rootStore = storeFactory(connFocus);
+  const cacheEntryStore = storeFactory(cacheKeyFocus);
 
   const getBreakable = awaitable<Breakable>((): Awaitable<Breakable> => {
     try {
-      const conn = root.getSnapshot();
+      const conn = rootStore.getSnapshot();
 
       if (isConnection<A, I>(conn)) {
-        return insert(conn, storeFactory(cacheKeyFocus), input, cacheKey);
+        return insert(conn, cacheEntryStore, input, cacheKey);
       } else {
         return noopBreakable;
       }
@@ -86,7 +89,7 @@ export const createConnectionStoreFactory = <S, A, I>(
       prevConn = conn;
     });
 
-    const unsubscribe = root.subscribe(() => {
+    const unsubscribe = rootStore.subscribe(() => {
       getBreakable().then((nextConn) => {
         /**
          * If the root state is updated and the connection
@@ -95,6 +98,7 @@ export const createConnectionStoreFactory = <S, A, I>(
          */
         if (nextConn !== prevConn) {
           prevConn.disconnect();
+          prevConn = nextConn;
 
           /**
            * In the case that the breaker
@@ -104,8 +108,6 @@ export const createConnectionStoreFactory = <S, A, I>(
           if (connected) {
             nextConn.connect();
           }
-
-          prevConn = nextConn;
         }
       });
     });

@@ -8,4 +8,5 @@ export default defineConfig({
   clean: true,
   dts: true,
   keepNames: true,
+  target: "es2020",
 });

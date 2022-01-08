@@ -35,8 +35,80 @@ test("does not do anything if the value is unresolved", () => {
   expectThrowsPromise(obj, true);
 });
 
-test.todo("calls subscribe when it's loading and connected");
-test.todo("calls unsubscribe when it's loading and disconnected");
-test.todo("calls subscribe if it connects before subscribe is available and then connects");
-test.todo("does not load twice");
-test.todo("awaits being ready");
+test("calls subscribe when it's connected and then loading", () => {
+  const obj = new SuspendedClosure<string>();
+  const subscribe = jest.fn();
+
+  obj.connect();
+  obj.load(subscribe);
+
+  expect(subscribe).toHaveBeenCalledTimes(1);
+});
+
+test("calls subscribe when it's loading and then connected", () => {
+  const obj = new SuspendedClosure<string>();
+  const subscribe = jest.fn();
+
+  obj.load(subscribe);
+  obj.connect();
+
+  expect(subscribe).toHaveBeenCalledTimes(1);
+});
+
+test("calls unsubscribe when it's loading and disconnected", () => {
+  const obj = new SuspendedClosure<string>();
+  const unsubscribe = jest.fn();
+  const subscribe = jest.fn(() => unsubscribe);
+
+  obj.connect();
+  obj.disconnect();
+
+  expect(subscribe).not.toHaveBeenCalled();
+  expect(unsubscribe).not.toHaveBeenCalled();
+
+  obj.load(subscribe);
+
+  expect(subscribe).not.toHaveBeenCalled();
+  expect(unsubscribe).not.toHaveBeenCalled();
+
+  obj.connect();
+
+  expect(subscribe).toHaveBeenCalledTimes(1);
+  expect(unsubscribe).not.toHaveBeenCalled();
+
+  obj.disconnect();
+
+  expect(subscribe).toHaveBeenCalledTimes(1);
+  expect(unsubscribe).toHaveBeenCalledTimes(1);
+});
+
+test("does not load twice", () => {
+  const obj = new SuspendedClosure<string>();
+  const subscribe1 = jest.fn();
+  const subscribe2 = jest.fn();
+
+  obj.load(subscribe1);
+  obj.load(subscribe2);
+
+  obj.connect();
+
+  expect(subscribe1).toHaveBeenCalledTimes(1);
+  expect(subscribe2).not.toHaveBeenCalled();
+});
+
+test("awaits being ready", () => {
+  const obj = new SuspendedClosure<string>();
+  let prom!: Promise<unknown>;
+
+  try {
+    obj.getSnapshot();
+  } catch (err) {
+    prom = err as any;
+  }
+
+  expect(prom).toBeInstanceOf(Promise);
+  expect(prom).resolves.toBeUndefined();
+
+  obj.load(() => () => {});
+  obj.setSnapshot("!");
+});
