@@ -59,7 +59,7 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
   type ConnectionCache = { [cacheKey: string]: A extends Connection<infer B, any> ? ProxyLens<B> : never };
   type Target = Partial<BaseProxyLens<A> & { keyCache: KeyCache; connectionCache: ConnectionCache }>;
 
-  const proxy = new Proxy(new Function("") as Target, {
+  const proxy = new Proxy(function () {} as Target, {
     apply(target, _thisArg, argsArray) {
       const [input] = argsArray;
       const cacheKey = JSON.stringify(input);
