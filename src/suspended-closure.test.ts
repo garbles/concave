@@ -107,8 +107,10 @@ test("awaits being ready", () => {
   }
 
   expect(prom).toBeInstanceOf(Promise);
-  expect(prom).resolves.toBeUndefined();
 
   obj.load(() => () => {});
-  obj.setSnapshot("!");
+
+  setTimeout(() => obj.setSnapshot("!"));
+
+  return expect(prom).resolves.toBeUndefined();
 });
