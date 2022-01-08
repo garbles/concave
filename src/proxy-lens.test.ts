@@ -293,7 +293,7 @@ describe("connections", () => {
     const lens = proxyLens(factory, focus);
 
     const bStore = lens.b.getStore();
-    const bConnStore = (lens.b as any).connect(20).getStore();
+    const bConnStore = (lens.b as any)(20).getStore();
 
     const unsubscribe = bConnStore.subscribe();
 
