@@ -5,7 +5,7 @@ import { createLens } from "./create-lens";
 import { ProxyLens } from "./proxy-lens";
 import { proxyValue, ProxyValue } from "./proxy-value";
 import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
-import { Update, Updater } from "./types";
+import { Listener, Update, Updater } from "./types";
 
 type Nothing = typeof NOTHING;
 
@@ -60,7 +60,29 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
       }
     };
 
-    const state = React.useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+    /**
+     * Have to do this because the first thing `useSyncExternalStore` does is
+     * call `getSnapshot`; however, it is necessary to call subscribe first so that
+     * the connection is loaded.
+     */
+    const subscribe = React.useMemo(() => {
+      let listeners: Listener[] = [];
+
+      const unsubscribe = store.subscribe(() => {
+        listeners.forEach((fn) => fn());
+      });
+
+      return (listener: Listener) => {
+        listeners.push(listener);
+
+        return () => {
+          unsubscribe();
+          listeners = [];
+        };
+      };
+    }, [store]);
+
+    const state = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
     const update = React.useCallback(
       (updater: Updater<A>) => {

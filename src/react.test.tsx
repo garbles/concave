@@ -2,12 +2,13 @@
  * @jest-environment jsdom
  */
 
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { createLens } from "./create-lens";
 import { ShouldUpdate } from "./should-update";
 import { ProxyLens } from "./proxy-lens";
+import { connection } from "./connection";
 
 type State = {
   a: {
@@ -311,4 +312,61 @@ test("ignores passing the same value", () => {
   });
 
   expect(renderCount).toEqual(1);
+});
+
+describe("with connections", () => {
+  let listener: jest.Mock;
+
+  beforeEach(() => {
+    listener = jest.fn();
+  });
+
+  const create = () =>
+    createLens({
+      a: connection<{ b: { c: number } }>((store) => {
+        setTimeout(() => {
+          store.setSnapshot({ b: { c: -1 } });
+        });
+
+        return store.subscribe(listener);
+      }),
+    });
+
+  test("throws async connections with suspense", () => {
+    jest.spyOn(console, "error").mockImplementationOnce(() => {});
+
+    const lens = create();
+
+    const Test = () => {
+      const [c, setC] = lens.a.connect().b.c.use();
+
+      return <div />;
+    };
+
+    /**
+     * It throws without suspense
+     */
+    expect(() => render(<Test />)).toThrow();
+  });
+
+  test("awaits connections", async () => {
+    const lens = create();
+
+    const Test = () => {
+      const [c] = lens.a.connect().b.c.use();
+
+      return <div>LOADED!: {c}</div>;
+    };
+
+    render(
+      <React.Suspense fallback={<div>LOADING!</div>}>
+        <Test />
+      </React.Suspense>
+    );
+
+    expect(() => screen.getByText("LOADING!")).not.toThrow();
+
+    // `getSnapshot` is being called before `subscribe`
+    await waitFor(() => screen.getByText("LOADED!: -1"));
+  });
 });

@@ -45,6 +45,7 @@ export const connection = <A, I = void>(
   const cache = new Proxy(stub, {
     get(_target, _key): A {
       let key = _key as keyof ConnectionCache<A>;
+
       /**
        * If the value is not in the cache then create an unresolved entry for it.
        * This can happen if we call `getSnapshot()` before the connection has even
