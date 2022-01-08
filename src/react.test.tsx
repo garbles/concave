@@ -338,7 +338,7 @@ describe("with connections", () => {
     const lens = create();
 
     const Test = () => {
-      const [c, setC] = lens.a.connect().b.c.use();
+      const [c, setC] = lens.a().b.c.use();
 
       return <div />;
     };
@@ -353,7 +353,7 @@ describe("with connections", () => {
     const lens = create();
 
     const Test = () => {
-      const [c] = lens.a.connect().b.c.use();
+      const [c] = lens.a().b.c.use();
 
       return <div>LOADED!: {c}</div>;
     };

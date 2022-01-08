@@ -227,14 +227,14 @@ describe("connections", () => {
     const lens = create();
 
     expect(() => lens.a.getStore().getSnapshot()).not.toThrow();
-    expect(() => lens.a.connect().getStore().getSnapshot()).toThrow();
-    expect(() => lens.a.connect().b.getStore().getSnapshot()).toThrow();
-    expect(() => lens.a.connect().b.c.getStore().getSnapshot()).toThrow();
+    expect(() => lens.a().getStore().getSnapshot()).toThrow();
+    expect(() => lens.a().b.getStore().getSnapshot()).toThrow();
+    expect(() => lens.a().b.c.getStore().getSnapshot()).toThrow();
   });
 
   test("does not throw when calling for async data", async () => {
     const lens = create();
-    const bStore = lens.a.connect().b.getStore();
+    const bStore = lens.a().b.getStore();
 
     const unsubscribe = bStore.subscribe();
     await new Promise((res) => setTimeout(res));
@@ -264,7 +264,7 @@ describe("connections", () => {
     const [factory, focus] = createRootStoreFactory(state);
     const lens = proxyLens(factory, focus);
 
-    const aStore = lens.b.connect(5).a.connect().getStore();
+    const aStore = lens.b(5).a().getStore();
 
     const unsubscribe = aStore.subscribe();
 
@@ -350,8 +350,8 @@ describe("connections", () => {
     const [factory, focus] = createRootStoreFactory(state);
     const lens = proxyLens(factory, focus);
 
-    const aStore = lens.a.connect(20).getStore();
-    const bStore = lens.b.connect(20).getStore();
+    const aStore = lens.a(20).getStore();
+    const bStore = lens.b(20).getStore();
 
     const aUnsubscribe = aStore.subscribe();
     const bUnsubscribe = bStore.subscribe();

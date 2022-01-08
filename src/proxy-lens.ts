@@ -6,7 +6,7 @@ import { createUseLens } from "./react";
 import { ReactDevtools } from "./react-devtools";
 import { ShouldUpdate } from "./should-update";
 import { createConnectionStoreFactory, Store } from "./store";
-import { AnyArray, AnyConnection, AnyObject, AnyPrimitive, Update } from "./types";
+import { AnyArray, AnyConnection, AnyObject, AnyPrimitive, Key, Update } from "./types";
 
 type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -36,7 +36,7 @@ type BaseProxyLens<A> = {
 };
 
 type ConnectionProxyLens<A> = BaseProxyLens<A> &
-  (A extends Connection<infer B, infer I> ? { connect(input: I): ProxyLens<B> } : {});
+  (A extends Connection<infer B, infer I> ? (input: I) => ProxyLens<B> : {});
 
 type ArrayProxyLens<A extends AnyArray> = BaseProxyLens<A> & { [K in number]: ProxyLens<A[K]> };
 type ObjectProxyLens<A extends AnyObject> = BaseProxyLens<A> & { [K in keyof A]: ProxyLens<A[K]> };
@@ -52,13 +52,29 @@ export type ProxyLens<A> =
 
 const THROW_ON_COPY = Symbol();
 const specialKeys: (keyof BaseProxyLens<{}>)[] = ["use", "getStore", "$key"];
+const functionTrapKeys = ["arguments", "caller", "prototype"];
 
 export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<S, A>): ProxyLens<A> => {
   type KeyCache = { [K in keyof A]?: ProxyLens<A[K]> };
   type ConnectionCache = { [cacheKey: string]: A extends Connection<infer B, any> ? ProxyLens<B> : never };
   type Target = Partial<BaseProxyLens<A> & { keyCache: KeyCache; connectionCache: ConnectionCache }>;
 
-  const proxy = new Proxy({} as Target, {
+  const proxy = new Proxy(new Function("") as Target, {
+    apply(target, _thisArg, argsArray) {
+      const [input] = argsArray;
+      const cacheKey = JSON.stringify(input);
+
+      const connCache = (target.connectionCache ??= {});
+      let next = connCache[cacheKey];
+
+      if (!next) {
+        const [nextFactory, nextFocus] = createConnectionStoreFactory(storeFactory, focus as any, input);
+        next = connCache[cacheKey] = proxyLens(nextFactory, nextFocus) as any;
+      }
+
+      return next;
+    },
+
     get(target, key) {
       /**
        * Block React introspection as it will otherwise produce an infinite chain of
@@ -66,22 +82,6 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
        */
       if (key === "$$typeof") {
         return undefined;
-      }
-
-      if (key === "connect") {
-        const connCache = (target.connectionCache ??= {});
-
-        return (input: any) => {
-          const cacheKey = JSON.stringify(input);
-          let next = connCache[cacheKey];
-
-          if (!next) {
-            const [nextFactory, nextFocus] = createConnectionStoreFactory(storeFactory, focus as any, input);
-            next = connCache[cacheKey] = proxyLens(nextFactory, nextFocus) as any;
-          }
-
-          return next;
-        };
       }
 
       if (key === "$key") {
@@ -111,14 +111,14 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
     },
 
     ownKeys(_target) {
-      return [...specialKeys, THROW_ON_COPY];
+      return [...specialKeys, ...functionTrapKeys, THROW_ON_COPY];
     },
 
     has(_target, key) {
       return specialKeys.includes(key as keyof BaseProxyLens<{}>);
     },
 
-    getOwnPropertyDescriptor(_target, key) {
+    getOwnPropertyDescriptor(target, key) {
       if (specialKeys.includes(key as keyof BaseProxyLens<{}>)) {
         return {
           configurable: true,
@@ -126,6 +126,10 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
           writable: false,
           value: proxy[key as keyof Partial<BaseProxyLens<A>>],
         };
+      }
+
+      if (functionTrapKeys.includes(key as keyof Target)) {
+        return Reflect.getOwnPropertyDescriptor(target, key);
       }
 
       /**
