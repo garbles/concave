@@ -5,7 +5,7 @@ import { createLens } from "./create-lens";
 import { ProxyLens } from "./proxy-lens";
 import { proxyValue, ProxyValue } from "./proxy-value";
 import { ShouldUpdate, shouldUpdateToFunction } from "./should-update";
-import { Update } from "./types";
+import { Listener, Update, Updater } from "./types";
 
 type Nothing = typeof NOTHING;
 
@@ -60,8 +60,46 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
       }
     };
 
-    const state = React.useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
-    const setState = store.update;
+    /**
+     * Have to do this because the first thing `useSyncExternalStore` does is
+     * call `getSnapshot`; however, it is necessary to call subscribe first so that
+     * the connection is loaded.
+     */
+    const subscribe = React.useMemo(() => {
+      let listeners: Listener[] = [];
+
+      const unsubscribe = store.subscribe(() => {
+        listeners.forEach((fn) => fn());
+      });
+
+      return (listener: Listener) => {
+        listeners.push(listener);
+
+        return () => {
+          unsubscribe();
+          listeners = [];
+        };
+      };
+    }, [store]);
+
+    const state = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+    const update = React.useCallback(
+      (updater: Updater<A>) => {
+        const prev = store.getSnapshot();
+        const next = updater(prev);
+
+        /**
+         * If the next value is the previous one, then do nothing.
+         */
+        if (Object.is(prev, next)) {
+          return;
+        }
+
+        store.setSnapshot(next);
+      },
+      [store]
+    );
 
     /**
      * Assign the current state to the previous state so that when `getSnapshot`
@@ -74,7 +112,7 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
      */
     const value = React.useMemo(() => proxyValue(state, proxy), [state, proxy]);
 
-    return [value, setState];
+    return [value, update];
   };
 
 export function useCreateLens<S>(initialState: S | (() => S)) {
