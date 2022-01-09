@@ -24,6 +24,8 @@ Lens-like state management (for React).
   - [Should use() re-render?](#should-use-re-render)
   - [Lens.$key: A unique key for the `Lens<A>`](#lenskey-a-unique-key-for-the-lensa)
   - [Store](#store)
+  - [connection](#connection)
+  - [Connection](#connection)
   - [useCreateLens](#usecreatelens)
 - [Use without TypeScript](#use-without-typescript)
 
@@ -410,8 +412,9 @@ let email: string;
 /**
  * Update email.
  */
-accountStore.update((account) => {
-  return { ...account, email };
+accountStore.setSnapshot({
+  ...accountStore.getSnapshot(),
+  email,
 });
 ```
 
@@ -609,15 +612,135 @@ export const TodoList = () => {
 ```ts
 type Store<A> = {
   getSnapshot(): A;
+  setSnapshot(next: A): void;
   subscribe(listener: Listener): Unsubscribe;
-  update((current: A) => A): void;
-}
+};
 
 type Listener = () => void;
 type Unsubscribe = () => void;
 ```
 
-Returned by `lens.getStore()`. Mostly useful outside of the React component life cycle.
+Returned by `lens.getStore()`. Used to make imperative operations easy to do. Get and set the data directly as well as subscribe to updates.
+
+Stores are used by [`connection`](#connection) to allow for complex async behaviors directly in the lens. As such, calling `getSnapshot()` on a store belonging to a connection before it has received at least one value will throw a Promise.
+
+### connection
+
+```ts
+declare function connection<A, I>(create: (store: Store<A>, input: I) => Unsubscribe | void): Connection<A, I>;
+```
+
+A connection takes a `create` callback that receives a [`Store<A>`](#store) and some input `I`. Connections can be embedded inside a monolithic `Lens<S>` and following the protocol for [React Suspense](https://reactjs.org/docs/concurrent-mode-suspense.html) so that accessing data inside the connection is written as if it is synchronous.
+
+```ts
+const timer = connection<number, { startTime: number; interval: number }>((store, input) => {
+  /**
+   * This store is identical to any other store.
+   */
+  store.setSnapshot(input.startTime);
+
+  const intervalId = setInterval(() => {
+    const prev = store.getSnapshot();
+    store.setSnapshot(prev + 1);
+  }, input.interval);
+
+  return () => {
+    clearInterval(intervalId);
+  };
+});
+
+const state = {
+  // ...
+  count: timer,
+};
+
+export const lens = createLens(state);
+```
+
+And then in a component, the connection can be collapsed into a lens given some input.
+
+```tsx
+type Props = {
+  state: Lens<{ count: Connection<number, number> }>;
+};
+
+const App = (props: Props) => {
+  /**
+   * As part of the lens, `count` is a function that takes the input for the connection
+   * and returns a new lens.
+   */
+  const [count, updateCount] = props.state.count({ startTime: 10, interval: 1000 }).use();
+
+  // ...
+};
+```
+
+`count` and `updateCount` work exactly as they would for any other lens, meaning that you could, for example, subtract 20 seconds off of the timer by calling `updateCount(prev => prev - 20)`.
+
+Connections only automatically share state _if_ they exist at the same keyPath _and_ the same input. The input is serialized as a key with `JSON.stringify`, so changing the order of keys or including extraneous values will create a new cached value.
+
+Furthermore, `connection` can store any value. Walking that value, even if there is no data yet, happens with the `Lens` as if the data is already present.
+
+```tsx
+type Props = {
+  /**
+   * Imagine we have a lens with the following
+   */
+  state: Lens<{
+    me: {
+      /**
+       * This `Connection` does not have a second type variable because it doesn't take any input
+       */
+      profile: Connection<{
+        account: {
+          emailPreferences: {
+            subscribed: boolean;
+          };
+        };
+      }>;
+    };
+  }>;
+};
+
+export const EmailPreferencesApp = (props: Props) => {
+  const [subscribed, setSubscribed] = props.state.me.profile().account.emailPreferences.subscribed.use();
+
+  // ...
+};
+```
+
+This component `EmailPreferencesApp` will be suspended until the profile connection has resolved a value. The connection itself might look something like this.
+
+```ts
+type Profile = {
+  account: {
+    emailPreferences: {
+      subscribed: boolean;
+    };
+  };
+};
+
+const profile = connection<Profile, void>((store) => {
+  fetch("/profile")
+    .then((resp) => resp.json())
+    .then((data) => {
+      store.setSnapshot(data);
+    });
+});
+```
+
+:warning: Calling `.use()` on a connection—for example, `props.state.me.profile.use()` will return the raw `Connection` which you should not attempt to replace or write to. It is a special object with magical powers, so just don't. :warning:
+
+### Connection
+
+```ts
+type Connection<A, I = void> = {};
+```
+
+The type returned by `connection`. It is useless outside of the library internals, but necessary for typing your state/lens.
+
+- `A`: The data kept inside of the store.
+- `I`: The input data provided to the store.
 
 ### useCreateLens
 

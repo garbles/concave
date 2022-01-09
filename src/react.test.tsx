@@ -369,4 +369,6 @@ describe("with connections", () => {
     // `getSnapshot` is being called before `subscribe`
     await waitFor(() => screen.getByText("LOADED!: -1"));
   });
+
+  test.todo("changing the input data will reset the connection");
 });

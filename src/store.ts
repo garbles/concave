@@ -1,9 +1,10 @@
 import { Awaitable, awaitable } from "./awaitable";
 import { Breakable, Breaker } from "./breaker";
 import { Connection, focusToCache, insert, isConnection } from "./connection";
+import { isObject } from "./is-object";
 import { LensFocus, rootLensFocus } from "./lens-focus";
 import { SubscriptionGraph } from "./subscription-graph";
-import { Listener, Unsubscribe } from "./types";
+import { Key, Listener, Unsubscribe } from "./types";
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 
@@ -40,15 +41,13 @@ export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFac
 };
 
 let noopBreakable: Breakable = { connect() {}, disconnect() {} };
-let storeIdCounter = 1;
 
 export const createConnectionStoreFactory = <S, A, I>(
   storeFactory: StoreFactory<S>,
   connFocus: LensFocus<S, Connection<A, I>>,
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
-  let id = storeIdCounter++;
-  const cacheKey = `connection(${id}, ${JSON.stringify(input ?? {})})`;
+  const cacheKey = `connection([${connFocus.keyPath}], ${JSON.stringify(input ?? {})})`;
   const cacheKeyFocus = focusToCache(connFocus, cacheKey);
 
   const rootStore = storeFactory(connFocus);
