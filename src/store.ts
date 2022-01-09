@@ -1,11 +1,10 @@
 import { Awaitable, awaitable } from "./awaitable";
 import { Breakable, Breaker } from "./breaker";
 import { Connection, focusToCache, insert, isConnection } from "./connection";
-import { isObject } from "./is-object";
 import { keyPathToString } from "./key-path-to-string";
 import { LensFocus, rootLensFocus } from "./lens-focus";
 import { SubscriptionGraph } from "./subscription-graph";
-import { Key, Listener, Unsubscribe } from "./types";
+import { Listener, Unsubscribe } from "./types";
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
 

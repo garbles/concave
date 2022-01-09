@@ -630,7 +630,7 @@ Stores are used by [`connection`](#connection) to allow for complex async behavi
 declare function connection<A, I>(create: (store: Store<A>, input: I) => Unsubscribe | void): Connection<A, I>;
 ```
 
-A connection takes a `create` callback that receives a [`Store<A>`](#store) and some input `I`. Connections can be embedded inside a monolithic `Lens<S>` and following the protocol for [React Suspense](https://reactjs.org/docs/concurrent-mode-suspense.html) so that accessing data inside the connection is written as if it is synchronous.
+A connection takes a `create` callback that receives a [`Store<A>`](#store) and some input `I`. Connections can be embedded inside a monolithic `Lens<S>` and follow the protocol for [React Suspense](https://reactjs.org/docs/concurrent-mode-suspense.html)—they throw a Promise if data is not yet present—so that async data fetching can be written as if it is synchronous.
 
 ```ts
 const timer = connection<number, { startTime: number; interval: number }>((store, input) => {
@@ -677,7 +677,7 @@ const App = (props: Props) => {
 
 `count` and `updateCount` work exactly as they would for any other lens, meaning that you could, for example, subtract 20 seconds off of the timer by calling `updateCount(prev => prev - 20)`.
 
-Connections only automatically share state _if_ they exist at the same keyPath _and_ the same input. The input is serialized as a key with `JSON.stringify`, so changing the order of keys or including extraneous values will create a new cached value.
+Connections only automatically share state _if_ they exist at the same key path _and_ have the same input. The input is serialized as a key with `JSON.stringify`, so changing the order of keys or including extraneous values will create a new cached value.
 
 Furthermore, `connection` can store any value. Walking that value, even if there is no data yet, happens with the `Lens` as if the data is already present.
 
