@@ -71,10 +71,8 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
    * never actually accesses target properties. Further, constructing a function is slightly
    * slower than constructing an object, but it is only done once and then cached forever.
    */
-  const target = function () {} as Target;
-
-  const proxy = new Proxy(target, {
-    apply(target, _thisArg, argsArray) {
+  const proxy = new Proxy(function () {} as Target, {
+    apply(_target, _thisArg, argsArray) {
       const connCache = (connectionCache ??= {});
       const [input] = argsArray;
       const cacheKey = JSON.stringify(input);
@@ -88,7 +86,7 @@ export const proxyLens = <S, A>(storeFactory: StoreFactory<S>, focus: LensFocus<
       return next;
     },
 
-    get(target, key) {
+    get(_target, key) {
       /**
        * Block React introspection as it will otherwise produce an infinite chain of
        * ProxyLens values in React Devtools.

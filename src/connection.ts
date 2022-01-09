@@ -27,18 +27,7 @@ export const connection = <A, I = void>(
   create: (store: Store<A>, input: I) => Unsubscribe | void
 ): Connection<A, I> => {
   const connectionCache: ConnectionCache<A> = {};
-
-  const stub: ValueCache<A> = Object.create(null);
-
-  Object.defineProperties(stub, {
-    [doNotShallowCopy]: {
-      configurable: true,
-      enumerable: false,
-      writable: false,
-      value: true,
-    },
-  });
-
+  const stub = doNotShallowCopy({} as ValueCache<A>);
   /**
    * Wrap the real cache to handle suspense.
    */
@@ -81,15 +70,9 @@ export const connection = <A, I = void>(
     return conn;
   };
 
-  const conn = Object.create(null);
+  const conn = doNotShallowCopy({} as Connection<A, I>);
 
   Object.defineProperties(conn, {
-    [doNotShallowCopy]: {
-      configurable: true,
-      enumerable: false,
-      writable: false,
-      value: true,
-    },
     [INSERT]: {
       configurable: true,
       enumerable: false,

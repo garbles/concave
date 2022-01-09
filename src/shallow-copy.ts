@@ -1,9 +1,20 @@
 import { isObject } from "./is-object";
 
-export const doNotShallowCopy = Symbol("Do not shallow copy");
+const DO_NOT_SHALLOW_COPY = Symbol();
+
+export const doNotShallowCopy = <T extends {}>(obj: T): T => {
+  Object.defineProperty(obj, DO_NOT_SHALLOW_COPY, {
+    configurable: true,
+    enumerable: false,
+    writable: false,
+    value: true,
+  });
+
+  return obj;
+};
 
 export const shallowCopy = <T extends {}>(obj: T): T => {
-  if (Reflect.has(obj, doNotShallowCopy)) {
+  if (Reflect.has(obj, DO_NOT_SHALLOW_COPY)) {
     return obj;
   }
 
