@@ -1,9 +1,9 @@
-import { Breakable, Breaker } from "./breaker";
+import { BreakerLike, Breaker } from "./breaker";
 import { Unsubscribe } from "./types";
 
 type Resolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
 
-export class SuspendedClosure<A> implements Breakable {
+export class SuspendedClosure<A> implements BreakerLike {
   private resolution: Resolution<A> = { status: "unresolved" };
   private breaker = Breaker.noop();
   private onReady: Promise<unknown>;

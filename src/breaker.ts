@@ -2,12 +2,12 @@ import { Unsubscribe } from "./types";
 
 type State = { connected: false } | { connected: true; unsubscribe: Unsubscribe };
 
-export interface Breakable {
+export interface BreakerLike {
   connect(): void;
   disconnect(): void;
 }
 
-export class Breaker implements Breakable {
+export class Breaker implements BreakerLike {
   static noop() {
     return new Breaker(() => () => {});
   }

@@ -1,9 +1,8 @@
 import { Awaitable, awaitable } from "./awaitable";
-import { Breakable, Breaker } from "./breaker";
+import { Breaker, BreakerLike } from "./breaker";
 import { Connection, focusToCache, insert, isConnection } from "./connection";
 import { keyPathToString } from "./key-path-to-string";
 import { LensFocus, rootLensFocus } from "./lens-focus";
-import { SubscriptionGraph } from "./subscription-graph";
 import { Listener, Unsubscribe } from "./types";
 
 export type StoreFactory<S> = <A>(focus: LensFocus<S, A>) => Store<A>;
@@ -17,21 +16,25 @@ export type Store<A> = {
 const noop: Listener = () => {};
 
 export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFactory<S>, LensFocus<S, S>] => {
-  const graph = new SubscriptionGraph();
+  const subscriptions = new Set<Unsubscribe>();
   const focus = rootLensFocus<S>();
   let snapshot = initialState;
 
-  const factory: StoreFactory<S> = ({ keyPath, lens }) => {
+  const factory: StoreFactory<S> = ({ lens }) => {
     return {
       getSnapshot() {
         return lens.get(snapshot);
       },
       subscribe(listener = noop) {
-        return graph.subscribe(keyPath, listener);
+        subscriptions.add(listener);
+
+        return () => {
+          subscriptions.delete(listener);
+        };
       },
       setSnapshot(next) {
         snapshot = lens.set(snapshot, next);
-        graph.notify(keyPath);
+        subscriptions.forEach((fn) => fn());
         return true;
       },
     };
@@ -40,7 +43,7 @@ export const createRootStoreFactory = <S extends {}>(initialState: S): [StoreFac
   return [factory, focus];
 };
 
-let noopBreakable: Breakable = { connect() {}, disconnect() {} };
+let noopBreakable: BreakerLike = { connect() {}, disconnect() {} };
 
 export const createConnectionStoreFactory = <S, A, I>(
   storeFactory: StoreFactory<S>,
@@ -53,7 +56,7 @@ export const createConnectionStoreFactory = <S, A, I>(
   const rootStore = storeFactory(connFocus);
   const cacheEntryStore = storeFactory(cacheKeyFocus);
 
-  const getBreakable = awaitable<Breakable>((): Awaitable<Breakable> => {
+  const getCacheEntry = awaitable((): Awaitable<BreakerLike> => {
     try {
       const conn = rootStore.getSnapshot();
 
@@ -64,7 +67,7 @@ export const createConnectionStoreFactory = <S, A, I>(
       }
     } catch (err) {
       if (err instanceof Promise) {
-        return err.then(getBreakable);
+        return err.then(getCacheEntry);
       }
 
       throw err;
@@ -75,7 +78,7 @@ export const createConnectionStoreFactory = <S, A, I>(
     let connected = true;
     let prevConn = noopBreakable;
 
-    getBreakable().then((conn) => {
+    getCacheEntry().then((conn) => {
       /**
        * In the case that the breaker
        * is disconnected before `getBreakable`
@@ -89,7 +92,7 @@ export const createConnectionStoreFactory = <S, A, I>(
     });
 
     const unsubscribe = rootStore.subscribe(() => {
-      getBreakable().then((nextConn) => {
+      getCacheEntry().then((nextConn) => {
         /**
          * If the root state is updated and the connection
          * changes, then disconnect the old previous and
