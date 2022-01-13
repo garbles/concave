@@ -23,16 +23,15 @@ export type Connection<A, I = void> = {
   [CACHE]: ValueCache<A>;
 };
 
+const cacheStub = doNotShallowCopy({} as ValueCache<any>);
+
 export const connection = <A, I = void>(
   create: (store: Store<A>, input: I) => Unsubscribe | void
 ): Connection<A, I> => {
   const connectionCache: ConnectionCache<A> = {};
+  let cacheRef: ValueCache<A>;
 
-  const stub = doNotShallowCopy({} as ValueCache<A>);
-  /**
-   * Wrap the real cache to handle suspense.
-   */
-  const cache = new Proxy(stub, {
+  const proxyHandler: ProxyHandler<ValueCache<A>> = {
     get(_target, _key): A {
       let key = _key as keyof ConnectionCache<A>;
 
@@ -55,9 +54,18 @@ export const connection = <A, I = void>(
       }
 
       conn.setSnapshot(value);
+
+      /**
+       * When a new value is set on the cache wrap it in a new Proxy
+       * so that it busts caching.
+       */
+      cacheRef = new Proxy(cacheStub, proxyHandler);
+
       return true;
     },
-  });
+  };
+
+  cacheRef = new Proxy(cacheStub, proxyHandler);
 
   const insert: InsertConnection<A, I> = (store, input, cacheKey) => {
     /**
@@ -71,24 +79,20 @@ export const connection = <A, I = void>(
     return conn;
   };
 
-  const conn = doNotShallowCopy({} as Connection<A, I>);
-
-  Object.defineProperties(conn, {
+  return Object.defineProperties({} as Connection<A, I>, {
     [INSERT]: {
       configurable: true,
       enumerable: true,
-      writable: false,
       value: insert,
     },
     [CACHE]: {
       configurable: true,
       enumerable: true,
-      writable: true,
-      value: cache,
+      get() {
+        return cacheRef;
+      },
     },
   });
-
-  return conn;
 };
 
 export const focusToCache = <S, A, I>(focus: LensFocus<S, Connection<A, I>>, cacheKey: string): LensFocus<S, A> =>
