@@ -82,7 +82,7 @@ export const createUseLens = <A>(proxy: ProxyLens<A>) =>
       };
     }, [store]);
 
-    const state = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    let state = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
     const update = React.useCallback(
       (updater: Updater<A>) => {

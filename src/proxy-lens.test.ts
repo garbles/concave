@@ -337,37 +337,39 @@ describe("connections", () => {
     expect(cleanup).toHaveBeenCalledTimes(2);
   });
 
-  test("adjacent connections with the same input do not share the same data", () => {
+  test("adjacent connections with the same input share the same data", () => {
     const conn = connection<number, number>((store, input) => {
       store.setSnapshot(input + 100);
     });
 
     const state = {
       a: conn,
-      b: conn,
+      b: {
+        c: conn,
+      },
     };
 
     const [factory, focus] = createRootStoreFactory(state);
     const lens = proxyLens(factory, focus);
 
     const aStore = lens.a(20).getStore();
-    const bStore = lens.b(20).getStore();
+    const cStore = lens.b.c(20).getStore();
 
     const aUnsubscribe = aStore.subscribe();
-    const bUnsubscribe = bStore.subscribe();
+    const bUnsubscribe = cStore.subscribe();
 
     expect(aStore.getSnapshot()).toEqual(120);
-    expect(bStore.getSnapshot()).toEqual(120);
+    expect(cStore.getSnapshot()).toEqual(120);
 
     aStore.setSnapshot(0);
 
     expect(aStore.getSnapshot()).toEqual(0);
-    expect(bStore.getSnapshot()).toEqual(120);
+    expect(cStore.getSnapshot()).toEqual(0);
 
-    bStore.setSnapshot(-100);
+    cStore.setSnapshot(-100);
 
-    expect(aStore.getSnapshot()).toEqual(0);
-    expect(bStore.getSnapshot()).toEqual(-100);
+    expect(aStore.getSnapshot()).toEqual(-100);
+    expect(cStore.getSnapshot()).toEqual(-100);
 
     aUnsubscribe();
     bUnsubscribe();

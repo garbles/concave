@@ -1,9 +1,13 @@
+import { Store } from ".";
 import { BreakerLike, Breaker } from "./breaker";
-import { Unsubscribe } from "./types";
+import { Listener, Unsubscribe } from "./types";
 
 type Resolution<A> = { status: "unresolved" } | { status: "loading" } | { status: "resolved"; value: A };
 
-export class SuspendedClosure<A> implements BreakerLike {
+const noop: Listener = () => {};
+
+export class SuspendedClosure<A> implements BreakerLike, Store<A> {
+  private subscriptions = new Set<Unsubscribe>();
   private resolution: Resolution<A> = { status: "unresolved" };
   private breaker = Breaker.noop();
   private onReady: Promise<unknown>;
@@ -30,18 +34,20 @@ export class SuspendedClosure<A> implements BreakerLike {
   setSnapshot(value: A) {
     switch (this.resolution.status) {
       case "unresolved": {
-        return;
+        return false;
       }
 
       case "loading": {
         this.resolution = { status: "resolved", value };
         this.ready();
-        return;
+        this.notify();
+        return true;
       }
 
       case "resolved": {
         this.resolution.value = value;
-        return;
+        this.notify();
+        return true;
       }
     }
   }
@@ -77,5 +83,17 @@ export class SuspendedClosure<A> implements BreakerLike {
 
   disconnect() {
     this.breaker.disconnect();
+  }
+
+  subscribe(listener = noop): Unsubscribe {
+    this.subscriptions.add(listener);
+
+    return () => {
+      this.subscriptions.delete(listener);
+    };
+  }
+
+  private notify() {
+    this.subscriptions.forEach((fn) => fn());
   }
 }

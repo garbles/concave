@@ -1,7 +1,6 @@
 import { Awaitable, awaitable } from "./awaitable";
 import { Breaker, BreakerLike } from "./breaker";
-import { Connection, focusToCache, insert, isConnection } from "./connection";
-import { keyPathToString } from "./key-path-to-string";
+import { Connection, focusToCacheEntry, insert, isConnection } from "./connection";
 import { LensFocus, rootLensFocus } from "./lens-focus";
 import { Listener, Unsubscribe } from "./types";
 
@@ -50,8 +49,8 @@ export const createConnectionStoreFactory = <S, A, I>(
   connFocus: LensFocus<S, Connection<A, I>>,
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
-  const cacheKey = `connection([${keyPathToString(connFocus.keyPath)}], ${JSON.stringify(input ?? {})})`;
-  const cacheKeyFocus = focusToCache(connFocus, cacheKey);
+  const cacheKey = `connection(${JSON.stringify(input ?? {})})`;
+  const cacheKeyFocus = focusToCacheEntry(connFocus, input);
 
   const rootStore = storeFactory(connFocus);
   const cacheEntryStore = storeFactory(cacheKeyFocus);
@@ -61,7 +60,10 @@ export const createConnectionStoreFactory = <S, A, I>(
       const conn = rootStore.getSnapshot();
 
       if (isConnection<A, I>(conn)) {
-        return insert(conn, cacheEntryStore, input, cacheKey);
+        // GABE: can resolve the cache key in insert func here
+        // just pass factory here
+        // conn can define its own cache key function
+        return insert(conn, cacheEntryStore, input);
       } else {
         return noopBreakable;
       }

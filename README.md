@@ -677,7 +677,7 @@ const App = (props: Props) => {
 
 `count` and `updateCount` work exactly as they would for any other lens, meaning that you could, for example, subtract 20 seconds off of the timer by calling `updateCount(prev => prev - 20)`.
 
-Connections only automatically share state _if_ they exist at the same key path _and_ have the same input. The input is serialized as a key with `JSON.stringify`, so changing the order of keys or including extraneous values will create a new cached value.
+Connections only automatically share state _if_ have the same input. The input is serialized as a key with `JSON.stringify`, so changing the order of keys or including extraneous values will create a new cached value.
 
 Furthermore, `connection` can store any value. Walking that value, even if there is no data yet, happens with the `Lens` as if the data is already present.
 
