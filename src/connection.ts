@@ -43,7 +43,6 @@ const deserializeCacheKey = (cacheKey: string): unknown => {
 export const connection = <A, I = void>(
   create: (store: Store<A>, input: I) => Unsubscribe | void
 ): Connection<A, I> => {
-  const stub = doNotShallowCopy({} as ValueCache<A>);
   const connectionCache: ConnectionCache<A> = {};
   let cacheRef: ValueCache<A>;
 
@@ -75,13 +74,15 @@ export const connection = <A, I = void>(
        * When a new value is set on the cache wrap it in a new Proxy
        * so that it busts caching.
        */
-      cacheRef = new Proxy(stub, handler);
+      cacheRef = new Proxy({}, handler);
+      doNotShallowCopy(cacheRef);
 
       return true;
     },
   };
 
-  cacheRef = new Proxy(stub, handler);
+  cacheRef = new Proxy({}, handler);
+  doNotShallowCopy(cacheRef);
 
   const insert: InsertConnection<A, I> = (store, input) => {
     const cacheKey = serializeInput(input);
