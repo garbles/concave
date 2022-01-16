@@ -1,6 +1,6 @@
 import { Awaitable, awaitable } from "./awaitable";
 import { Breaker, BreakerLike } from "./breaker";
-import { Connection, focusToCacheEntry, insert, isConnection } from "./connection";
+import { Connection, focusToCacheEntry, isConnection } from "./connection";
 import { LensFocus, rootLensFocus } from "./lens-focus";
 import { Listener, Unsubscribe } from "./types";
 
@@ -60,10 +60,7 @@ export const createConnectionStoreFactory = <S, A, I>(
       const conn = rootStore.getSnapshot();
 
       if (isConnection<A, I>(conn)) {
-        // GABE: can resolve the cache key in insert func here
-        // just pass factory here
-        // conn can define its own cache key function
-        return insert(conn, cacheEntryStore, input);
+        return conn.insert(cacheEntryStore, input);
       } else {
         return noopBreakable;
       }

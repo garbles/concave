@@ -16,11 +16,10 @@ type ValueCache<A> = {
 
 type InsertConnection<A, I> = (store: Store<A>, input: I) => SuspendedClosure<A>;
 
-const INSERT = Symbol();
 const CACHE = Symbol();
 
 export type Connection<A, I = void> = {
-  [INSERT]: InsertConnection<A, I>;
+  insert: InsertConnection<A, I>;
   [CACHE]: ValueCache<A>;
   // figure this out first
   with(input: I): Connection<A, void>;
@@ -98,14 +97,9 @@ export const connection = <A, I = void>(
     return cls;
   };
 
-  const conn = {} as Connection<A, I>;
+  const conn = { insert } as Connection<A, I>;
 
   return Object.defineProperties(conn, {
-    [INSERT]: {
-      configurable: true,
-      enumerable: true,
-      value: insert,
-    },
     [CACHE]: {
       configurable: true,
       enumerable: true,
@@ -132,10 +126,6 @@ export const focusToCacheEntry = <S, A, I>(focus: LensFocus<S, Connection<A, I>>
   return refineLensFocus(focus, [CACHE, cacheKey]);
 };
 
-export const insert = <A, I>(conn: Connection<A, I>, store: Store<A>, input: I) => {
-  return conn[INSERT](store, input);
-};
-
 export const isConnection = <A, I>(conn: any): conn is Connection<A, I> => {
-  return isObject(conn) && Reflect.has(conn, INSERT) && Reflect.has(conn, CACHE);
+  return isObject(conn) && Reflect.has(conn, "insert") && Reflect.has(conn, CACHE);
 };
