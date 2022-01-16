@@ -240,4 +240,55 @@ describe("async store", () => {
     unsubscribe1();
     unsubscribe2();
   });
+
+  test("can be enhanced by a secondary connection", () => {
+    const cleanup1 = jest.fn();
+    const cleanup2 = jest.fn();
+    const listener1 = jest.fn();
+
+    const conn = connection<number, number>((store, input) => {
+      store.setSnapshot(input + 100);
+
+      const unsubscribe = store.subscribe(listener1);
+
+      return () => {
+        cleanup1();
+        unsubscribe();
+      };
+    });
+
+    const enhanced = conn.enhance<number>(55, (store, input) => {
+      expect(store.getSnapshot()).toEqual(155);
+
+      store.setSnapshot(input + 1000);
+
+      return cleanup2;
+    });
+
+    expect(listener1).not.toHaveBeenCalled();
+
+    const [connStore1] = setup(conn, 100);
+    const unsubscribe1 = connStore1.subscribe();
+
+    expect(listener1).not.toHaveBeenCalled();
+    expect(connStore1.getSnapshot()).toEqual(200);
+
+    unsubscribe1();
+
+    expect(cleanup1).toHaveBeenCalledTimes(1);
+
+    const [connStore2] = setup(enhanced, 41069);
+    const unsubscribe2 = connStore2.subscribe();
+
+    expect(listener1).toHaveBeenCalledTimes(1);
+    expect(cleanup1).toHaveBeenCalledTimes(1);
+    expect(cleanup2).toHaveBeenCalledTimes(0);
+    expect(connStore2.getSnapshot()).toEqual(42069);
+
+    unsubscribe2();
+
+    expect(cleanup1).toHaveBeenCalledTimes(2);
+    expect(cleanup2).toHaveBeenCalledTimes(1);
+    expect(connStore2.getSnapshot()).toEqual(42069);
+  });
 });

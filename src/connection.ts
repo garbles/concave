@@ -1,4 +1,5 @@
 import { BasicLens } from "./basic-lens";
+import { BreakerLike } from "./breaker";
 import { isObject } from "./is-object";
 import { LensFocus, refineLensFocus } from "./lens-focus";
 import { doNotShallowCopy } from "./shallow-copy";
@@ -14,19 +15,20 @@ type ValueCache<A> = {
   [cacheKey: string]: A;
 };
 
-type InsertConnection<A, I> = (store: Store<A>, input: I) => SuspendedClosure<A>;
+type Load<A, I> = (store: Store<A>, input: I) => Unsubscribe | void;
+type InsertConnection<A, I> = (store: Store<A>, input: I) => BreakerLike;
 
 const CACHE = Symbol();
 
-export type Connection<A, I = void> = {
+type Connectable<A, I = void> = {
   insert: InsertConnection<A, I>;
   [CACHE]: ValueCache<A>;
+  enhance<J>(input: I, create: Load<A, J>): Connectable<A, J>;
   // figure this out first
-  with(input: I): Connection<A, void>;
-  // get cache key, pull closure from store, call this func
-  extend<J>(input: I, create: (store: Store<A>, input: J) => Unsubscribe | void): Connection<A, J>;
-  // in order to get input here, deserialize cachekey
-  refine<B>(fn: (input: I) => BasicLens<A, B>): Connection<B, I>;
+  // with(input: I): Connection<A, void>;
+  // // get cache key, pull closure from store, call this func
+  // // in order to get input here, deserialize cachekey
+  // refine<B>(fn: (input: I) => BasicLens<A, B>): Connection<B, I>;
 };
 
 export type Ref<A> = Connection<A, void>;
@@ -39,14 +41,12 @@ const deserializeCacheKey = (cacheKey: string): unknown => {
   return JSON.parse(cacheKey);
 };
 
-export const connection = <A, I = void>(
-  create: (store: Store<A>, input: I) => Unsubscribe | void
-): Connection<A, I> => {
-  const connectionCache: ConnectionCache<A> = {};
-  let cacheRef: ValueCache<A>;
+export class Connection<A, I = void> {
+  #load: Load<A, I>;
+  #connectionCache: ConnectionCache<A> = {};
 
-  const handler: ProxyHandler<ValueCache<A>> = {
-    get(_target, _key): A {
+  [CACHE] = new Proxy({} as ValueCache<A>, {
+    get: (_target, _key): A => {
       let key = _key as keyof ConnectionCache<A>;
 
       /**
@@ -54,14 +54,14 @@ export const connection = <A, I = void>(
        * This can happen if we call `getSnapshot()` before the connection has even
        * had a chance to insert an entry for the cache yet.
        */
-      let cached = (connectionCache[key] ??= new SuspendedClosure<A>());
+      let cached = (this.#connectionCache[key] ??= new SuspendedClosure<A>());
 
       return cached.getSnapshot();
     },
 
-    set(_target, _key, value) {
+    set: (_target, _key, value) => {
       let key = _key as keyof ConnectionCache<A>;
-      let conn = connectionCache[key];
+      let conn = this.#connectionCache[key];
 
       if (conn === undefined) {
         return false;
@@ -69,45 +69,48 @@ export const connection = <A, I = void>(
 
       conn.setSnapshot(value);
 
-      /**
-       * When a new value is set on the cache wrap it in a new Proxy
-       * so that it busts caching.
-       */
-      cacheRef = new Proxy({}, handler);
-      doNotShallowCopy(cacheRef);
-
       return true;
     },
-  };
+  });
 
-  cacheRef = new Proxy({}, handler);
-  doNotShallowCopy(cacheRef);
+  constructor(load: Load<A, I>) {
+    this.#load = load;
 
-  const insert: InsertConnection<A, I> = (store, input) => {
+    doNotShallowCopy(this[CACHE]);
+    doNotShallowCopy(this);
+  }
+
+  insert(store: Store<A>, input: I): SuspendedClosure<A> {
     const cacheKey = serializeInput(input);
 
     /**
      * It can be that the cache entry was previously created by trying to
      * access the cache because the code had been loaded.
      */
-    let cls = (connectionCache[cacheKey] ??= new SuspendedClosure<A>());
+    let cls = (this.#connectionCache[cacheKey] ??= new SuspendedClosure<A>());
 
-    cls.load(() => create(store, input) ?? (() => {}));
+    cls.load(() => this.#load(store, input) ?? (() => {}));
 
     return cls;
-  };
+  }
 
-  const conn = { insert } as Connection<A, I>;
+  enhance<J>(i: I, load: Load<A, J>): Connection<A, J> {
+    return new Connection((store, j) => {
+      const unsubscribeI = this.#load(store, i) ?? (() => {});
+      const unsubscribeJ = load(store, j) ?? (() => {});
 
-  return Object.defineProperties(conn, {
-    [CACHE]: {
-      configurable: true,
-      enumerable: true,
-      get() {
-        return cacheRef;
-      },
-    },
-  });
+      return () => {
+        unsubscribeI();
+        unsubscribeJ();
+      };
+    });
+  }
+}
+
+export const connection = <A, I = void>(
+  create: (store: Store<A>, input: I) => Unsubscribe | void
+): Connection<A, I> => {
+  return new Connection(create);
 };
 
 export const ref = <A>(initialState: A): Ref<A> => {
