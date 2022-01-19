@@ -49,7 +49,6 @@ export const createConnectionStoreFactory = <S, A, I>(
   connFocus: LensFocus<S, Connection<A, I>>,
   input: I
 ): [StoreFactory<S>, LensFocus<S, A>] => {
-  const cacheKey = `connection(${JSON.stringify(input ?? {})})`;
   const cacheKeyFocus = focusToCacheEntry(connFocus, input);
 
   const rootStore = storeFactory(connFocus);

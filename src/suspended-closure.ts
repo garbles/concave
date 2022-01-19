@@ -31,7 +31,7 @@ export class SuspendedClosure<A> implements BreakerLike, Store<A> {
     return this.resolution.value;
   }
 
-  setSnapshot(value: A) {
+  setSnapshot(value: A): boolean {
     switch (this.resolution.status) {
       case "unresolved": {
         return false;

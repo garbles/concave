@@ -39,13 +39,13 @@ export class Connection<A, I = void> {
 
     set: (_target, _key, value) => {
       let key = _key as keyof ConnectionCache<A>;
-      let conn = this.#cache[key];
+      let cached = this.#cache[key];
 
-      if (conn === undefined) {
+      if (cached === undefined) {
         return false;
       }
 
-      conn.setSnapshot(value);
+      cached.setSnapshot(value);
 
       return true;
     },
